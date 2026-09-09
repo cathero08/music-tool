@@ -5,19 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#191512">
-<meta name="description" content="依心情、曲風、年代挑歌，一鍵在 YouTube 開始播放">
+<meta name="description" content="依男女歌手、心情、曲風、年代挑歌，一鍵在 YouTube 開始播放">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="心情點唱機">
 <meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="./manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
-<title>心情點唱機</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://accounts.google.com; script-src 'unsafe-inline' https://accounts.google.com; connect-src https://sheets.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; img-src data: https://*.googleusercontent.com; base-uri 'none'">
+<title>心情點唱機 - 音樂標籤與行動播放</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src https://docs.google.com https://*.google.com https://*.googleusercontent.com; img-src data: https://i.ytimg.com https://img.youtube.com; form-action 'none'; base-uri 'none'">
 </head>
 <body>
 <style>
-  /* 刻意只做深色主題：點唱機面板本身就是暗的，且使用情境是夜裡／通勤／開車。
-     所有顏色都明確定義，不依賴宿主的底色。 */
   :root {
     --ground:   #191512;
     --panel:    #241E1A;
@@ -28,6 +27,7 @@
     --brass:    #C9A227;
     --brass-lo: #8A6F1B;
     --sage:     #7D9471;
+    --red:      #C85A5A;
     --sans: "PingFang TC", "Noto Sans TC", "Hiragino Sans", "Microsoft JhengHei",
             -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -43,12 +43,46 @@
     font-size: 16px;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
-    padding-bottom: 3rem;
+    padding-bottom: 7rem;
   }
 
-  .wrap { max-width: 34rem; margin: 0 auto; padding: 0 1rem; }
+  .wrap { max-width: 36rem; margin: 0 auto; padding: 0 1rem; }
 
-  /* ── 讀數面板 ───────────────────────────── */
+  /* ── 頂部設定提示與門檻面板 ── */
+  .gate {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin: 1.2rem 0;
+  }
+  .gate-title {
+    font-size: 1.15rem; font-weight: 700; color: var(--brass); margin: 0 0 0.5rem;
+  }
+  .gate-body { font-size: 0.88rem; color: var(--ink-dim); line-height: 1.6; margin-bottom: 0.85rem; }
+  .gate-input {
+    width: 100%;
+    background: var(--ground);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 0.45rem;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.9rem;
+    font-family: var(--mono);
+    margin-bottom: 0.6rem;
+  }
+  .gate-input:focus { outline: none; border-color: var(--brass); }
+  .gate-actions { display: flex; gap: 0.5rem; }
+  .btn-primary {
+    background: var(--brass); color: #191512; font-weight: 600;
+    border: none; border-radius: 0.45rem; padding: 0.6rem 1.2rem; cursor: pointer;
+  }
+  .btn-subtle {
+    background: transparent; color: var(--ink-dim);
+    border: 1px solid var(--line); border-radius: 0.45rem; padding: 0.6rem 1rem; cursor: pointer;
+  }
+
+  /* ── 讀數面板（置頂）── */
   .readout {
     position: sticky; top: 0; z-index: 10;
     background: var(--panel);
@@ -56,93 +90,68 @@
     box-shadow: 0 8px 24px -12px #000;
   }
   .readout-inner {
-    max-width: 34rem; margin: 0 auto; padding: 0.9rem 1rem 1rem;
-    display: flex; flex-direction: column; gap: 0.85rem;
+    max-width: 36rem; margin: 0 auto; padding: 0.8rem 1rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
   }
-  .dial { display: flex; align-items: baseline; gap: 0.55rem; }
+  .dial-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .dial { display: flex; align-items: baseline; gap: 0.5rem; }
   .dial-num {
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
-    font-size: 2.6rem; font-weight: 700; line-height: 1;
-    letter-spacing: -0.03em;
+    font-size: 2.5rem; font-weight: 700; line-height: 1;
     color: var(--brass);
   }
   .dial-num.zero { color: var(--ink-dim); }
   .dial-unit { font-size: 0.95rem; color: var(--ink-dim); }
-  .dial-note {
-    margin-left: auto; text-align: right;
-    font-size: 0.75rem; line-height: 1.35; color: var(--ink-dim);
-    max-width: 11rem;
-  }
+  .dial-stat { font-size: 0.75rem; color: var(--ink-dim); }
 
   .actions { display: flex; gap: 0.5rem; }
   button {
-    font-family: inherit; font-size: 1rem; cursor: pointer;
+    font-family: inherit; font-size: 0.95rem; cursor: pointer;
     border-radius: 0.5rem; border: 1px solid transparent;
-    padding: 0.72rem 1rem; transition: filter 0.12s, background 0.12s;
+    padding: 0.65rem 0.9rem; transition: all 0.15s ease;
   }
   button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
   .btn-play {
-    flex: 1; background: var(--brass); color: #191512; font-weight: 600;
+    flex: 2; background: var(--brass); color: #191512; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   }
   .btn-play:disabled { background: var(--line); color: var(--ink-dim); cursor: not-allowed; }
-  .btn-play:not(:disabled):active { filter: brightness(0.88); }
+  .btn-play:not(:disabled):active { filter: brightness(0.9); }
   .btn-reroll {
-    background: transparent; color: var(--ink); border-color: var(--line);
-    padding-inline: 0.9rem;
+    flex: 1; background: var(--panel-hi); color: var(--ink); border-color: var(--line);
+    display: flex; align-items: center; justify-content: center; gap: 0.3rem;
   }
-  .btn-reroll:active { background: var(--panel-hi); }
+  .btn-reroll:active { background: var(--line); }
+  .btn-embed-toggle {
+    background: transparent; color: var(--ink-dim); border-color: var(--line); padding: 0.65rem;
+  }
+  .btn-embed-toggle[aria-pressed="true"] {
+    background: var(--sage); border-color: var(--sage); color: #16190F;
+  }
 
-  /* ── 網址複製列 ─────────────────────────── */
-  .linkrow { display: flex; align-items: stretch; }
-  .linkrow input {
-    flex: 1; min-width: 0;
-    font-family: var(--mono); font-size: 0.72rem;
-    background: var(--ground); color: var(--ink-dim);
-    border: 1px solid var(--line); border-right: none;
-    border-radius: 0.45rem 0 0 0.45rem;
-    padding: 0.5rem 0.6rem;
-    text-overflow: ellipsis;
-  }
-  .linkrow input:focus {
-    outline: none; color: var(--ink); border-color: var(--brass-lo);
-  }
-  .linkrow input:disabled { opacity: 0.45; }
-  .btn-copy {
-    flex: none; font-size: 0.8rem; padding: 0.5rem 0.85rem;
-    background: var(--panel-hi); color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 0 0.45rem 0.45rem 0;
-    white-space: nowrap;
-  }
-  .btn-copy:not(:disabled):active { background: var(--line); }
-  .btn-copy:disabled { color: var(--line); cursor: not-allowed; }
-  .btn-copy.done { background: var(--sage); border-color: var(--sage); color: #16190F; }
-
-  /* ── 搜尋 ──────────────────────────────── */
-  .search { position: relative; margin-top: 1.25rem; }
+  /* ── 搜尋欄 ── */
+  .search { position: relative; margin-top: 1rem; }
   .search input {
-    width: 100%; font-family: inherit; font-size: 1rem;
+    width: 100%; font-family: inherit; font-size: 0.95rem;
     background: var(--panel); color: var(--ink);
     border: 1px solid var(--line); border-radius: 0.5rem;
-    padding: 0.7rem 2.4rem 0.7rem 0.85rem;
+    padding: 0.65rem 2.2rem 0.65rem 0.85rem;
   }
   .search input::placeholder { color: var(--ink-dim); }
   .search input:focus { outline: none; border-color: var(--brass-lo); }
   .search-clear {
     position: absolute; right: 0.3rem; top: 50%; transform: translateY(-50%);
     background: none; border: none; color: var(--ink-dim);
-    font-size: 1.25rem; padding: 0.3rem 0.55rem; line-height: 1;
+    font-size: 1.2rem; padding: 0.3rem 0.5rem;
   }
 
-  /* ── 標籤組 ────────────────────────────── */
-  .group { margin-top: 1.5rem; }
-  .group-head {
-    display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.6rem;
-  }
+  /* ── 標籤分類組 ── */
+  .group { margin-top: 1.25rem; }
+  .group-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
   .group-label {
-    font-size: 0.7rem; font-weight: 600;
-    letter-spacing: 0.16em; text-transform: uppercase;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--ink-dim);
   }
   .group-hint { font-size: 0.7rem; color: var(--line); }
@@ -150,696 +159,625 @@
   .chip {
     background: var(--panel); color: var(--ink);
     border: 1px solid var(--line); border-radius: 1.4rem;
-    padding: 0.44rem 0.85rem; font-size: 0.92rem;
+    padding: 0.4rem 0.8rem; font-size: 0.9rem;
+    display: inline-flex; align-items: center;
   }
   .chip .n {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
     font-size: 0.75rem; color: var(--ink-dim); margin-left: 0.35rem;
   }
   .chip[aria-pressed="true"] {
-    background: var(--sage); border-color: var(--sage); color: #16190F;
-    font-weight: 600;
+    background: var(--sage); border-color: var(--sage); color: #16190F; font-weight: 600;
   }
-  .chip[aria-pressed="true"] .n { color: #16190F; opacity: 0.62; }
-  .chip:disabled { opacity: 0.32; cursor: not-allowed; }
+  .chip[aria-pressed="true"] .n { color: #16190F; opacity: 0.65; }
+  .chip:disabled { opacity: 0.28; cursor: not-allowed; }
 
-  .reset {
-    margin-top: 1.4rem; background: none; border: none;
+  .reset-btn {
+    margin-top: 1rem; background: none; border: none;
     color: var(--ink-dim); font-size: 0.85rem;
-    padding: 0.4rem 0; text-decoration: underline; text-underline-offset: 3px;
+    padding: 0.3rem 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
   }
-  .reset[hidden] { display: none; }
 
-  /* ── 收錄清單 ───────────────────────────── */
-  .preview { margin-top: 1.75rem; border-top: 1px solid var(--line); padding-top: 1.1rem; }
+  /* ── 收錄歌曲預覽列表 ── */
+  .preview { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
   .list-head {
-    display: flex; align-items: center; gap: 0.6rem;
-    margin-bottom: 0.85rem; flex-wrap: wrap;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem;
   }
   .preview-label {
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--ink-dim);
   }
-  .modes { display: flex; margin-left: auto; }
-  .mode {
-    font-size: 0.78rem; padding: 0.32rem 0.7rem;
-    background: transparent; color: var(--ink-dim);
-    border: 1px solid var(--line);
-  }
-  .mode:first-child { border-radius: 0.4rem 0 0 0.4rem; }
-  .mode:last-child { border-radius: 0 0.4rem 0.4rem 0; border-left: none; }
-  .mode[aria-pressed="true"] {
-    background: var(--panel-hi); color: var(--ink); font-weight: 600;
-  }
-
   .track {
-    display: flex; gap: 0.6rem;
-    padding: 0.6rem 0; border-bottom: 1px solid var(--panel);
+    display: flex; gap: 0.75rem; align-items: flex-start;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--panel);
   }
-  .track-i {
-    font-family: var(--mono); font-variant-numeric: tabular-nums;
-    font-size: 0.72rem; color: var(--line); padding-top: 0.25rem;
-    min-width: 2.1rem; text-align: right; flex: none;
+  .track-num {
+    font-family: var(--mono); font-size: 0.75rem; color: var(--line);
+    min-width: 1.8rem; text-align: right; padding-top: 0.2rem;
   }
   .track-body { flex: 1; min-width: 0; }
-  .track-t { font-size: 0.92rem; line-height: 1.35; }
-  .track-c { font-size: 0.74rem; color: var(--ink-dim); margin-top: 0.1rem; }
-  .track-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
-  .tag {
-    font-size: 0.68rem; line-height: 1;
-    padding: 0.24rem 0.44rem; border-radius: 0.75rem;
-    background: transparent; color: var(--ink-dim);
-    border: 1px solid var(--line);
+  .track-title { font-size: 0.92rem; font-weight: 600; line-height: 1.35; word-break: break-word; }
+  .track-artist { font-size: 0.78rem; color: var(--ink-dim); margin-top: 0.15rem; }
+  .track-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+  .tag-badge {
+    font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 0.6rem;
+    background: var(--ground); color: var(--ink-dim); border: 1px solid var(--line);
   }
-  /* 語言與年代是「恰好一個」的欄位，用黃銅色區分出來 */
-  .tag.key { color: var(--brass); border-color: var(--brass-lo); }
-  .tag[aria-pressed="true"] {
-    background: var(--sage); border-color: var(--sage); color: #16190F;
-  }
-  .track-link {
-    flex: none; align-self: flex-start;
-    background: none; border: none; color: var(--line);
-    font-size: 0.9rem; padding: 0.25rem 0.1rem 0.25rem 0.3rem;
-  }
-  .track-link:active { color: var(--brass); }
-  .track-link.done { color: var(--sage); }
+  .tag-badge.key { color: var(--brass); border-color: var(--brass-lo); }
 
-  .more {
-    width: 100%; margin-top: 0.9rem;
-    background: transparent; color: var(--ink-dim);
-    border: 1px dashed var(--line); border-radius: 0.45rem;
-    padding: 0.6rem; font-size: 0.85rem;
+  /* ── 底部內嵌播放器 ── */
+  .mini-player {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    background: #15110E; border-top: 1px solid var(--line);
+    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -6px rgba(0,0,0,0.85);
   }
-  .more:active { background: var(--panel); }
-  .empty { color: var(--ink-dim); font-size: 0.92rem; padding: 0.5rem 0 0; }
-
-  /* ── 登入閘門（只有自架版會用到）─────────────── */
-  .gate {
-    min-height: 100dvh; display: flex; align-items: center; justify-content: center;
-    padding: 1.5rem;
+  .mini-player[hidden] { display: none; }
+  .mini-inner {
+    max-width: 36rem; margin: 0 auto;
+    display: flex; align-items: center; gap: 0.75rem;
   }
-  .gate[hidden] { display: none; }
-  .gate-inner { max-width: 22rem; text-align: center; }
-  .gate-icon { font-size: 3rem; line-height: 1; }
-  .gate-title {
-    font-size: 1.5rem; font-weight: 600; margin: 0.8rem 0 0;
-    letter-spacing: 0.02em;
+  .player-frame-box {
+    width: 56px; height: 38px; background: #000; border-radius: 0.3rem; overflow: hidden; flex: none;
   }
-  .gate-body {
-    color: var(--ink-dim); font-size: 0.9rem; line-height: 1.6;
-    margin: 0.9rem 0 1.5rem;
-  }
-  .gate-btn {
-    width: 100%; background: var(--brass); color: #191512;
-    font-weight: 600; font-size: 1rem; padding: 0.8rem 1rem;
-    border-radius: 0.5rem; border: none;
-  }
-  .gate-btn:active { filter: brightness(0.88); }
-  .gate-btn:disabled { background: var(--line); color: var(--ink-dim); }
-  .gate-note {
-    color: var(--line); font-size: 0.75rem; line-height: 1.55;
-    margin: 1.1rem 0 0;
-  }
-  .gate-note strong { color: var(--ink-dim); }
-  .gate-err { color: #D98A6A; }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { transition: none !important; }
+  .player-frame-box iframe { width: 100%; height: 100%; border: none; }
+  .player-meta { flex: 1; min-width: 0; }
+  .player-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-sub { font-size: 0.72rem; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-ctrls { display: flex; gap: 0.4rem; align-items: center; flex: none; }
+  .btn-ctrl {
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 50%; width: 34px; height: 34px; padding: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
   }
 </style>
 
-<div id="app" hidden>
 <div class="readout">
   <div class="readout-inner">
-    <div class="dial">
-      <span class="dial-num" id="count">0</span>
-      <span class="dial-unit">首符合</span>
-      <span class="dial-note" id="note"></span>
+    <div class="dial-row">
+      <div class="dial">
+        <span class="dial-num zero" id="count">0</span>
+        <span class="dial-unit">首選取</span>
+      </div>
+      <div class="dial-stat" id="total-stat">載入中...</div>
     </div>
     <div class="actions">
-      <button class="btn-play" id="play">▶　開始播放</button>
-      <button class="btn-reroll" id="reroll" title="同條件重新抽一批">🔄</button>
-    </div>
-    <div class="linkrow">
-      <input id="url" type="text" readonly aria-label="這批歌單的網址"
-             placeholder="選好條件後這裡會出現網址">
-      <button class="btn-copy" id="copy" disabled>複製</button>
+      <button class="btn-play" id="btn-yt" disabled>
+        ▶ 在 YouTube 播放 (<span id="play-count">0</span>)
+      </button>
+      <button class="btn-reroll" id="btn-reroll" style="display:none;" title="符合超過50首，隨機換下一批">
+        🔄 換一批
+      </button>
+      <button class="btn-embed-toggle" id="btn-embed" aria-pressed="false" title="在網頁內嵌播放器播放">
+        🎧 內嵌
+      </button>
     </div>
   </div>
 </div>
 
 <div class="wrap">
-  <div class="search">
-    <input id="q" type="search" placeholder="搜尋歌名或頻道" autocomplete="off"
-           autocapitalize="off" spellcheck="false">
-    <button class="search-clear" id="qclear" hidden aria-label="清除搜尋">×</button>
+  <!-- 連線設定區域（若無 Sheet ID 則顯示） -->
+  <div class="gate" id="gate">
+    <div class="gate-title">連接你的 Google 試算表</div>
+    <div class="gate-body">
+      輸入你的 Google 試算表 ID 或發布連結。試算表請先設為「知道連結的使用者可檢視」或「發布到網路」。
+    </div>
+    <input type="text" id="input-sheet-id" class="gate-input" placeholder="例如：1A2b3C4d5E6f7G8h9I0jK-L_M...">
+    <div class="gate-actions">
+      <button class="btn-primary" id="btn-connect">連接試算表</button>
+      <button class="btn-subtle" id="btn-reset-sheet" style="display:none;">清除設定</button>
+    </div>
+    <div id="gate-msg" style="margin-top:0.6rem; font-size:0.8rem; color:var(--brass);"></div>
   </div>
 
+  <!-- 關鍵字即時搜尋 -->
+  <div class="search">
+    <input type="search" id="search-input" placeholder="搜尋歌名、歌手、頻道或標籤...">
+    <button class="search-clear" id="search-clear" hidden>×</button>
+  </div>
+
+  <!-- 分類篩選按鈕群組 -->
   <div id="groups"></div>
 
-  <button class="reset" id="reset" hidden>清除所有條件</button>
+  <button class="reset-btn" id="btn-clear-filters" hidden>清除全部篩選條件</button>
 
+  <!-- 曲目預覽 -->
   <div class="preview">
     <div class="list-head">
-      <span class="preview-label" id="list-label">收錄清單</span>
-      <div class="modes">
-        <button class="mode" id="mode-batch" aria-pressed="true">這批</button>
-        <button class="mode" id="mode-all" aria-pressed="false">全部</button>
-      </div>
+      <div class="preview-label">目前過濾曲目清單 (<span id="preview-count">0</span>)</div>
     </div>
-    <div id="list"></div>
+    <div id="track-list"></div>
   </div>
 </div>
 
-</div><!-- /#app -->
-
-<div class="gate" id="gate" hidden>
-  <div class="gate-inner">
-    <div class="gate-icon">🎧</div>
-    <h1 class="gate-title">心情點唱機</h1>
-    <p class="gate-body" id="gate-msg">
-      這個頁面本身不存任何資料 —— 歌單即時從你自己的 Google Sheet 讀取，
-      所以需要你授權讀取權限。
-    </p>
-    <button class="gate-btn" id="signin">用 Google 登入</button>
-    <p class="gate-note">
-      只要求 <strong>唯讀</strong> 試算表權限，且完全在你的瀏覽器內進行 ——
-      沒有任何伺服器經手你的資料。
-    </p>
+<!-- 底部內嵌 Mini Player -->
+<div class="mini-player" id="mini-player" hidden>
+  <div class="mini-inner">
+    <div class="player-frame-box" id="player-mount"></div>
+    <div class="player-meta">
+      <div class="player-title" id="now-title">點唱機就緒</div>
+      <div class="player-sub" id="now-artist">選取曲目開始播放</div>
+    </div>
+    <div class="player-ctrls">
+      <button class="btn-ctrl" id="btn-prev" title="上一首">⏮</button>
+      <button class="btn-ctrl" id="btn-toggle" title="播放/暫停">▶</button>
+      <button class="btn-ctrl" id="btn-next" title="下一首">⏭</button>
+    </div>
   </div>
 </div>
-
 
 <script>
-// 資料取得方式由 bootstrap 決定（內嵌 or 登入後抓 Sheet），
-// 這裡只負責拿到 DATA 之後的一切。
-window.__boot = function (DATA) {
+(function() {
   "use strict";
 
-  var SONGS = DATA.songs;          // [{v, t, c, g:[tags]}]
-  var CATS = DATA.categories;      // [[分類名, [標籤...]], ...]
-  var CAP = DATA.cap;              // 每批上限
-  var KEY = {};                    // 語言／年代（恰好一個的欄位）→ 顯示成黃銅色
-  (DATA.keyTags || []).forEach(function (t) { KEY[t] = 1; });
+  const LS_KEY = "music_jukebox_sheet_id";
+  const PLAY_CAP = 50;
 
-  var PAGE = 60;                   // 清單一次繪製幾列
-  var mode = "batch";              // "batch" = 這批會播到；"all" = 符合條件全部
-  var shown = PAGE;
+  // 標準分類定義（當試算表標頭包含時自動分類）
+  const DEFAULT_TAXONOMY = {
+    "語言": ["中文", "英文", "日文", "韓文", "粵語", "純音樂", "其他"],
+    "男女歌手": ["男歌手", "女歌手", "男女合唱", "樂團/組合", "純音樂"],
+    "年代": ["70s以前", "80s", "90s", "2000s", "2010s", "2020s"],
+    "曲風": ["流行", "搖滾", "爵士", "Indie", "電子", "R&B", "古典", "嘻哈/饒舌", "民謠", "ACG"],
+    "心情": ["放鬆", "嗨歌", "悲傷", "浪漫", "振奮", "療癒", "孤獨"],
+    "情境": ["開車", "工作", "運動", "睡前", "派對", "通勤"]
+  };
 
-  var picked = Object.create(null); // 分類名 -> Set(標籤)
-  var batch = [];                   // 目前抽出的曲目
-  var query = "";
+  const SINGLE_CATS = new Set(["語言", "男女歌手", "年代"]);
 
-  CATS.forEach(function (c) { picked[c[0]] = new Set(); });
+  let state = {
+    allSongs: [],
+    categories: {}, // { "語言": ["中文", "英文"...] }
+    selectedTags: new Set(),
+    searchQuery: "",
+    matchingSongs: [],
+    active50: [],
+    inAppMode: false,
+    currentPlayingIndex: 0
+  };
 
-  // ── 篩選 ─────────────────────────────────
-  function matches(song, skipCat) {
-    if (query) {
-      var hay = (song.t + " " + song.c).toLowerCase();
-      if (hay.indexOf(query) === -1) return false;
-    }
-    for (var name in picked) {
-      if (name === skipCat) continue;
-      var want = picked[name];
-      if (!want.size) continue;
-      var hit = false;
-      for (var i = 0; i < song.g.length; i++) {
-        if (want.has(song.g[i])) { hit = true; break; }
-      }
-      if (!hit) return false;   // 跨分類 AND
-    }
-    return true;
+  // DOM 元素
+  const gateEl = document.getElementById("gate");
+  const sheetInputEl = document.getElementById("input-sheet-id");
+  const connectBtn = document.getElementById("btn-connect");
+  const resetSheetBtn = document.getElementById("btn-reset-sheet");
+  const gateMsgEl = document.getElementById("gate-msg");
+
+  const countEl = document.getElementById("count");
+  const playCountEl = document.getElementById("play-count");
+  const totalStatEl = document.getElementById("total-stat");
+  const btnYt = document.getElementById("btn-yt");
+  const btnReroll = document.getElementById("btn-reroll");
+  const btnEmbed = document.getElementById("btn-embed");
+  const searchInput = document.getElementById("search-input");
+  const searchClear = document.getElementById("search-clear");
+  const groupsEl = document.getElementById("groups");
+  const clearFiltersBtn = document.getElementById("btn-clear-filters");
+  const trackListEl = document.getElementById("track-list");
+  const previewCountEl = document.getElementById("preview-count");
+
+  // Mini Player DOM
+  const miniPlayerEl = document.getElementById("mini-player");
+  const playerMount = document.getElementById("player-mount");
+  const nowTitle = document.getElementById("now-title");
+  const nowArtist = document.getElementById("now-artist");
+  const btnPrev = document.getElementById("btn-prev");
+  const btnToggle = document.getElementById("btn-toggle");
+  const btnNext = document.getElementById("btn-next");
+
+  // 1. 初始化與參數讀取
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramId = urlParams.get("id");
+  const savedId = paramId || localStorage.getItem(LS_KEY) || "";
+
+  if (savedId) {
+    sheetInputEl.value = savedId;
+    loadSheet(savedId);
   }
 
-  function hits() { return SONGS.filter(function (s) { return matches(s, null); }); }
-
-  /* 每顆 chip 上的數字：忽略「自己這個分類」的其他選擇後，加上這個標籤會命中幾首。
-     這樣數字才反映「按下去會得到什麼」，而不是一個和當前條件無關的靜態總數。 */
-  function chipCount(cat, tag) {
-    var n = 0;
-    for (var i = 0; i < SONGS.length; i++) {
-      var s = SONGS[i];
-      if (!matches(s, cat)) continue;
-      if (s.g.indexOf(tag) !== -1) n++;
+  connectBtn.addEventListener("click", () => {
+    const val = sheetInputEl.value.trim();
+    if (!val) {
+      showGateMsg("請輸入試算表 ID 或網址", true);
+      return;
     }
-    return n;
-  }
-
-  function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
-  }
-
-  // ── 繪製 ─────────────────────────────────
-  var elCount = document.getElementById("count");
-  var elNote = document.getElementById("note");
-  var elPlay = document.getElementById("play");
-  var elList = document.getElementById("list");
-  var elReset = document.getElementById("reset");
-  var elUrl = document.getElementById("url");
-  var elCopy = document.getElementById("copy");
-  var elLabel = document.getElementById("list-label");
-  var elModeBatch = document.getElementById("mode-batch");
-  var elModeAll = document.getElementById("mode-all");
-
-  // 找出某個標籤屬於哪個分類，才知道該往哪個 Set 裡切換
-  var CAT_OF = {};
-  CATS.forEach(function (pair) {
-    pair[1].forEach(function (t) { CAT_OF[t] = pair[0]; });
+    loadSheet(val);
   });
 
-  function copyText(text, btn, okLabel) {
-    function ok() {
-      btn.classList.add("done");
-      if (okLabel !== undefined) btn.textContent = okLabel;
-      setTimeout(function () {
-        btn.classList.remove("done");
-        if (okLabel !== undefined) btn.textContent = "複製";
-      }, 1600);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(ok, function () {});
+  resetSheetBtn.addEventListener("click", () => {
+    localStorage.removeItem(LS_KEY);
+    sheetInputEl.value = "";
+    resetSheetBtn.style.display = "none";
+    showGateMsg("已清除連線資訊，請重新輸入");
+  });
+
+  function showGateMsg(txt, isErr) {
+    gateMsgEl.textContent = txt;
+    gateMsgEl.style.color = isErr ? "var(--red)" : "var(--brass)";
+  }
+
+  // 2. 試算表載入引擎（官方 gviz 模式，零 Apps Script）
+  function extractSpreadsheetId(str) {
+    // 支援直接輸入 ID，或完整的 docs.google.com/spreadsheets/d/ID/... 網址
+    const m = str.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return m ? m[1] : str.trim();
+  }
+
+  async function loadSheet(rawInput) {
+    const sid = extractSpreadsheetId(rawInput);
+    if (!sid) return;
+
+    showGateMsg("正在連線試算表資料庫...");
+    connectBtn.disabled = true;
+
+    // 支援 Google Visualization API (gviz)
+    const gvizUrl = `https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:json`;
+
+    try {
+      const resp = await fetch(gvizUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+
+      // 解析 gviz 傳回之 JSON 結構 /*O_o*/ google.visualization.Query.setResponse({...});
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start === -1 || end === -1) throw new Error("無效的試算表回應");
+      const json = JSON.parse(text.substring(start, end + 1));
+
+      parseGvizData(json);
+      localStorage.setItem(LS_KEY, sid);
+      gateEl.style.display = "none";
+      resetSheetBtn.style.display = "inline-block";
+    } catch (e) {
+      console.error(e);
+      showGateMsg("連線失敗：請確認試算表已開啟「知道連結的使用者可檢視」或「發布到網路」", true);
+      connectBtn.disabled = false;
     }
   }
 
-  function playUrl() {
-    if (!batch.length) return "";
-    return "https://www.youtube.com/watch_videos?video_ids=" +
-           batch.map(function (s) { return s.v; }).join(",");
-  }
+  function parseGvizData(json) {
+    const table = json.table;
+    if (!table || !table.cols || !table.rows) {
+      showGateMsg("試算表內容為空", true);
+      return;
+    }
 
-  function buildGroups() {
-    var frag = document.createDocumentFragment();
-    CATS.forEach(function (pair) {
-      var cat = pair[0], tags = pair[1];
-      var g = document.createElement("div");
-      g.className = "group";
+    const header = table.cols.map(c => (c.label || "").trim());
+    const colIdx = {};
+    header.forEach((name, i) => { if (name) colIdx[name] = i; });
 
-      var head = document.createElement("div");
-      head.className = "group-head";
-      var lab = document.createElement("span");
-      lab.className = "group-label";
-      lab.textContent = cat;
-      head.appendChild(lab);
-      if (tags.length > 1) {
-        var hint = document.createElement("span");
-        hint.className = "group-hint";
-        hint.textContent = "可多選";
-        head.appendChild(hint);
+    if (!("videoId" in colIdx)) {
+      showGateMsg("試算表缺少 videoId 欄位", true);
+      return;
+    }
+
+    const songs = [];
+    const usedTags = {};
+
+    table.rows.forEach(r => {
+      if (!r.c) return;
+      const getVal = (name) => {
+        const idx = colIdx[name];
+        if (idx === undefined || !r.c[idx]) return "";
+        return String(r.c[idx].v || "").trim();
+      };
+
+      const vid = getVal("videoId");
+      if (!vid) return;
+      if (getVal("非音樂").toUpperCase() === "Y") return;
+
+      const title = getVal("歌名") || getVal("曲名") || "未命名曲目";
+      const artist = getVal("歌手/原唱") || getVal("原唱") || getVal("歌手") || "";
+      const channel = getVal("頻道") || "";
+
+      // 擷取所有標籤
+      const tags = [];
+      Object.keys(DEFAULT_TAXONOMY).forEach(cat => {
+        if (cat in colIdx) {
+          const val = getVal(cat);
+          if (val) {
+            val.replace(/,/g, "、").split("、").forEach(t => {
+              const cleaned = t.trim();
+              if (cleaned && !tags.includes(cleaned)) {
+                tags.push(cleaned);
+                usedTags[cleaned] = (usedTags[cleaned] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+
+      // 支援任何其他非固定欄位標籤
+      Object.keys(colIdx).forEach(cat => {
+        if (!["videoId", "歌名", "曲名", "歌手/原唱", "原唱", "歌手", "頻道", "來源清單", "非音樂", "年份", "更新時間"].includes(cat) && !DEFAULT_TAXONOMY[cat]) {
+          const val = getVal(cat);
+          if (val) {
+            val.replace(/,/g, "、").split("、").forEach(t => {
+              const cleaned = t.trim();
+              if (cleaned && !tags.includes(cleaned)) {
+                tags.push(cleaned);
+                usedTags[cleaned] = (usedTags[cleaned] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+
+      songs.push({
+        id: vid,
+        title: title,
+        artist: artist,
+        channel: channel,
+        tags: tags
+      });
+    });
+
+    state.allSongs = songs;
+
+    // 建立可用的分類集合（僅保留有實際曲目出現的標籤）
+    state.categories = {};
+    Object.entries(DEFAULT_TAXONOMY).forEach(([cat, list]) => {
+      const activeList = list.filter(t => usedTags[t]);
+      if (activeList.length) {
+        state.categories[cat] = activeList;
       }
+    });
+
+    // 額外自訂標籤
+    const customTags = Object.keys(usedTags).filter(t => !Object.values(DEFAULT_TAXONOMY).some(list => list.includes(t)));
+    if (customTags.length) {
+      state.categories["自訂"] = customTags;
+    }
+
+    renderGroups();
+    applyFilter();
+  }
+
+  // 3. 渲染篩選群組 UI
+  function renderGroups() {
+    groupsEl.innerHTML = "";
+    Object.entries(state.categories).forEach(([cat, tags]) => {
+      const g = document.createElement("div");
+      g.className = "group";
+      const head = document.createElement("div");
+      head.className = "group-head";
+      head.innerHTML = `<span class="group-label">${cat}</span><span class="group-hint">${SINGLE_CATS.has(cat) ? "單選" : "多選"}</span>`;
       g.appendChild(head);
 
-      var box = document.createElement("div");
-      box.className = "chips";
-      tags.forEach(function (tag) {
-        var b = document.createElement("button");
-        b.className = "chip";
-        b.type = "button";
-        b.setAttribute("aria-pressed", "false");
-        b.dataset.cat = cat;
-        b.dataset.tag = tag;
-        b.innerHTML = "";
-        b.appendChild(document.createTextNode(tag));
-        var n = document.createElement("span");
-        n.className = "n";
-        b.appendChild(n);
-        b.addEventListener("click", function () {
-          var set = picked[cat];
-          if (set.has(tag)) set.delete(tag); else set.add(tag);
-          render(true);
-        });
-        box.appendChild(b);
+      const chipsBox = document.createElement("div");
+      chipsBox.className = "chips";
+
+      tags.forEach(tag => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chip";
+        btn.dataset.cat = cat;
+        btn.dataset.tag = tag;
+        btn.setAttribute("aria-pressed", state.selectedTags.has(tag) ? "true" : "false");
+        btn.innerHTML = `${tag}<span class="n" id="chip-n-${encodeURIComponent(tag)}">0</span>`;
+
+        btn.addEventListener("click", () => toggleTag(cat, tag));
+        chipsBox.appendChild(btn);
       });
-      g.appendChild(box);
-      frag.appendChild(g);
+
+      g.appendChild(chipsBox);
+      groupsEl.appendChild(g);
     });
-    document.getElementById("groups").appendChild(frag);
   }
 
-  function render(reroll) {
-    var found = hits();
-
-    if (reroll || !batch.length) batch = shuffle(found).slice(0, CAP);
-    else {
-      // 條件沒變時保持同一批，但把已不符合的剔除
-      var ok = Object.create(null);
-      found.forEach(function (s) { ok[s.v] = 1; });
-      batch = batch.filter(function (s) { return ok[s.v]; });
-      if (!batch.length) batch = shuffle(found).slice(0, CAP);
-    }
-
-    elCount.textContent = found.length;
-    elCount.classList.toggle("zero", found.length === 0);
-
-    if (!found.length) {
-      elNote.textContent = "條件太窄，放寬一項再試";
-    } else if (found.length > CAP) {
-      elNote.textContent = "隨機播 " + CAP + " 首，🔄 可換一批";
+  function toggleTag(cat, tag) {
+    if (state.selectedTags.has(tag)) {
+      state.selectedTags.delete(tag);
     } else {
-      elNote.textContent = "全部播放";
+      // 若為單選類別，先移除該類別其他標籤
+      if (SINGLE_CATS.has(cat)) {
+        (state.categories[cat] || []).forEach(t => state.selectedTags.delete(t));
+      }
+      state.selectedTags.add(tag);
     }
-
-    elPlay.disabled = found.length === 0;
-
-    var url = playUrl();
-    elUrl.value = url;
-    elUrl.disabled = url === "";
-    elCopy.disabled = url === "";
-    elCopy.classList.remove("done");
-    elCopy.textContent = "複製";
-
-    // chip 數字與停用狀態
-    var chips = document.querySelectorAll(".chip");
-    for (var i = 0; i < chips.length; i++) {
-      var c = chips[i];
-      var cat = c.dataset.cat, tag = c.dataset.tag;
-      var on = picked[cat].has(tag);
-      c.setAttribute("aria-pressed", on ? "true" : "false");
-      var n = chipCount(cat, tag);
-      c.querySelector(".n").textContent = n;
-      c.disabled = (n === 0 && !on);
-    }
-
-    var any = query !== "";
-    for (var k in picked) if (picked[k].size) any = true;
-    elReset.hidden = !any;
-
-    renderList(found);
+    updateChipsUI();
+    applyFilter();
   }
 
-  function renderList(found) {
-    var rows = mode === "batch" ? batch : found;
+  function updateChipsUI() {
+    document.querySelectorAll(".chip").forEach(chip => {
+      const tag = chip.dataset.tag;
+      chip.setAttribute("aria-pressed", state.selectedTags.has(tag) ? "true" : "false");
+    });
+    clearFiltersBtn.hidden = state.selectedTags.size === 0 && !state.searchQuery;
+  }
 
-    elModeBatch.setAttribute("aria-pressed", mode === "batch" ? "true" : "false");
-    elModeAll.setAttribute("aria-pressed", mode === "all" ? "true" : "false");
-    elLabel.textContent = mode === "batch"
-      ? "這批會播到 " + rows.length + " 首"
-      : "符合條件 " + rows.length + " 首";
+  clearFiltersBtn.addEventListener("click", () => {
+    state.selectedTags.clear();
+    state.searchQuery = "";
+    searchInput.value = "";
+    searchClear.hidden = true;
+    updateChipsUI();
+    applyFilter();
+  });
 
-    elList.innerHTML = "";
-    if (!rows.length) {
-      var e = document.createElement("div");
-      e.className = "empty";
-      e.textContent = "沒有符合的歌曲。";
-      elList.appendChild(e);
+  // 4. 關鍵字搜尋事件
+  searchInput.addEventListener("input", (e) => {
+    state.searchQuery = e.target.value.trim().toLowerCase();
+    searchClear.hidden = !state.searchQuery;
+    clearFiltersBtn.hidden = state.selectedTags.size === 0 && !state.searchQuery;
+    applyFilter();
+  });
+
+  searchClear.addEventListener("click", () => {
+    state.searchQuery = "";
+    searchInput.value = "";
+    searchClear.hidden = true;
+    clearFiltersBtn.hidden = state.selectedTags.size === 0;
+    applyFilter();
+  });
+
+  // 5. 核心過濾邏輯（類別間 AND，類別內 OR）
+  function applyFilter() {
+    const selected = Array.from(state.selectedTags);
+    const q = state.searchQuery;
+
+    // 將選取的標籤依類別分組
+    const catPicks = {};
+    selected.forEach(t => {
+      for (const [cat, tags] of Object.entries(state.categories)) {
+        if (tags.includes(t)) {
+          catPicks[cat] = catPicks[cat] || [];
+          catPicks[cat].push(t);
+          break;
+        }
+      }
+    });
+
+    const activeCats = Object.values(catPicks);
+
+    state.matchingSongs = state.allSongs.filter(song => {
+      // 關鍵字搜尋匹配
+      if (q) {
+        const text = `${song.title} ${song.artist} ${song.channel} ${song.tags.join(" ")}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+
+      // 標籤篩選：必須滿足每一個有選取標籤的類別（類別間 AND，類別內 OR）
+      for (const groupTags of activeCats) {
+        const hasAnyInGroup = groupTags.some(t => song.tags.includes(t));
+        if (!hasAnyInGroup) return false;
+      }
+      return true;
+    });
+
+    // 隨機抽選 50 首作為播放目標
+    shuffle50();
+    updateCounts();
+    renderTrackList();
+  }
+
+  function shuffle50() {
+    const pool = [...state.matchingSongs];
+    // Fisher-Yates shuffle
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    state.active50 = pool.slice(0, PLAY_CAP);
+  }
+
+  btnReroll.addEventListener("click", () => {
+    shuffle50();
+    renderTrackList();
+    if (state.inAppMode) {
+      loadInAppVideo(0);
+    }
+  });
+
+  // 6. 介面計數更新
+  function updateCounts() {
+    const count = state.matchingSongs.length;
+    countEl.textContent = count;
+    countEl.className = "dial-num" + (count === 0 ? " zero" : "");
+    playCountEl.textContent = Math.min(count, PLAY_CAP);
+    previewCountEl.textContent = count;
+    totalStatEl.textContent = `媒體庫總計 ${state.allSongs.length} 首`;
+
+    btnYt.disabled = count === 0;
+    btnReroll.style.display = count > PLAY_CAP ? "flex" : "none";
+
+    // 更新每個 Chip 上的預估匹配數
+    document.querySelectorAll(".chip").forEach(chip => {
+      const tag = chip.dataset.tag;
+      const countForTag = state.allSongs.filter(s => s.tags.includes(tag)).length;
+      const badge = document.getElementById(`chip-n-${encodeURIComponent(tag)}`);
+      if (badge) badge.textContent = countForTag;
+    });
+  }
+
+  // 7. 渲染曲目列表
+  function renderTrackList() {
+    trackListEl.innerHTML = "";
+    if (state.matchingSongs.length === 0) {
+      trackListEl.innerHTML = `<div style="color:var(--ink-dim); padding:1rem 0; font-size:0.9rem;">沒有符合條件的曲目，請嘗試減少篩選標籤。</div>`;
       return;
     }
 
-    var limit = Math.min(shown, rows.length);
-    var frag = document.createDocumentFragment();
-
-    for (var i = 0; i < limit; i++) {
-      var s = rows[i];
-      var row = document.createElement("div");
+    const showList = state.matchingSongs.slice(0, 100);
+    showList.forEach((song, idx) => {
+      const row = document.createElement("div");
       row.className = "track";
 
-      var idx = document.createElement("span");
-      idx.className = "track-i";
-      idx.textContent = (i + 1);
-      row.appendChild(idx);
+      const tagsHtml = song.tags.map(t => {
+        const isKey = ["中文", "英文", "日文", "韓文", "粵語", "純音樂"].includes(t) || t.endsWith("s");
+        return `<span class="tag-badge ${isKey ? "key" : ""}">${t}</span>`;
+      }).join("");
 
-      var body = document.createElement("div");
-      body.className = "track-body";
+      row.innerHTML = `
+        <div class="track-num">${idx + 1}</div>
+        <div class="track-body">
+          <div class="track-title">${song.title}</div>
+          <div class="track-artist">${song.artist || song.channel}</div>
+          <div class="track-tags">${tagsHtml}</div>
+        </div>
+      `;
 
-      var t = document.createElement("div");
-      t.className = "track-t";
-      t.textContent = s.t;
-      body.appendChild(t);
-
-      var c = document.createElement("div");
-      c.className = "track-c";
-      c.textContent = s.c;
-      body.appendChild(c);
-
-      var tags = document.createElement("div");
-      tags.className = "track-tags";
-      s.g.forEach(function (tag) {
-        var cat = CAT_OF[tag];
-        var b = document.createElement("button");
-        b.className = "tag" + (KEY[tag] ? " key" : "");
-        b.type = "button";
-        b.textContent = tag;
-        if (cat) {
-          // 點標籤就把它加進／移出篩選條件 —— 「再多聽一些這種的」
-          b.setAttribute("aria-pressed", picked[cat].has(tag) ? "true" : "false");
-          b.title = "以「" + tag + "」篩選";
-          b.addEventListener("click", function () {
-            var set = picked[cat];
-            if (set.has(tag)) set.delete(tag); else set.add(tag);
-            shown = PAGE;
-            render(true);
-          });
-        } else {
-          b.disabled = true;
-        }
-        tags.appendChild(b);
+      row.addEventListener("click", () => {
+        playSingleSong(song.id, song.title, song.artist || song.channel);
       });
-      body.appendChild(tags);
-      row.appendChild(body);
 
-      var link = document.createElement("button");
-      link.className = "track-link";
-      link.type = "button";
-      link.textContent = "🔗";
-      link.title = "複製這首歌的網址";
-      link.setAttribute("aria-label", "複製「" + s.t + "」的網址");
-      (function (vid, btn) {
-        btn.addEventListener("click", function () {
-          copyText("https://www.youtube.com/watch?v=" + vid, btn);
-        });
-      })(s.v, link);
-      row.appendChild(link);
-
-      frag.appendChild(row);
-    }
-    elList.appendChild(frag);
-
-    if (rows.length > limit) {
-      var m = document.createElement("button");
-      m.className = "more";
-      m.type = "button";
-      m.textContent = "顯示更多（還有 " + (rows.length - limit) + " 首）";
-      m.addEventListener("click", function () {
-        shown += PAGE * 2;
-        renderList(found);
-      });
-      elList.appendChild(m);
-    }
-  }
-
-  // ── 事件 ─────────────────────────────────
-  elPlay.addEventListener("click", function () {
-    var url = playUrl();
-    if (url) window.open(url, "_blank");
-  });
-
-  // 點一下網址欄就全選，方便手動複製
-  elUrl.addEventListener("focus", function () { elUrl.select(); });
-  elUrl.addEventListener("click", function () { elUrl.select(); });
-
-  elCopy.addEventListener("click", function () {
-    var url = playUrl();
-    if (!url) return;
-
-    function ok() {
-      elCopy.textContent = "已複製";
-      elCopy.classList.add("done");
-      setTimeout(function () {
-        elCopy.textContent = "複製";
-        elCopy.classList.remove("done");
-      }, 1600);
-    }
-    void copyText;
-    function fallback() {
-      // 舊瀏覽器或 clipboard 權限被拒時，退回選取 + execCommand
-      elUrl.removeAttribute("disabled");
-      elUrl.select();
-      var done = false;
-      try { done = document.execCommand("copy"); } catch (e) { done = false; }
-      if (done) ok();
-      else elCopy.textContent = "請長按選取";
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(ok, fallback);
-    } else {
-      fallback();
-    }
-  });
-
-  document.getElementById("reroll").addEventListener("click", function () {
-    shown = PAGE;
-    render(true);
-  });
-
-  elModeBatch.addEventListener("click", function () {
-    mode = "batch"; shown = PAGE; render(false);
-  });
-  elModeAll.addEventListener("click", function () {
-    mode = "all"; shown = PAGE; render(false);
-  });
-
-  var elQ = document.getElementById("q");
-  var elQClear = document.getElementById("qclear");
-  elQ.addEventListener("input", function () {
-    query = elQ.value.trim().toLowerCase();
-    elQClear.hidden = query === "";
-    shown = PAGE;
-    render(true);
-  });
-  elQClear.addEventListener("click", function () {
-    elQ.value = ""; query = ""; elQClear.hidden = true; render(true);
-  });
-
-  elReset.addEventListener("click", function () {
-    for (var k in picked) picked[k].clear();
-    elQ.value = ""; query = ""; elQClear.hidden = true;
-    shown = PAGE;
-    render(true);
-  });
-
-  buildGroups();
-  render(true);
-  document.getElementById("app").hidden = false;
-  var g = document.getElementById("gate");
-  if (g) g.hidden = true;
-};
-</script>
-
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script>
-// 自架版的資料來源：登入後即時讀取你自己的 Google Sheet。
-// 這個檔案裡沒有任何歌曲資料 —— 只有設定與取得資料的邏輯。
-(function () {
-  "use strict";
-
-  var CFG = {"clientId":"000000-fake.apps.googleusercontent.com","sheetId":"1XhUKFgp2yNofOAPfSjGB2egYx4wwctlE082J2zatVOM","cap":50,"nonMusic":"非音樂","categories":[["語言",["中文","英文","日文","韓文","粵語","純音樂","其他"]],["心情",["放鬆","嗨歌","悲傷","浪漫","振奮","療癒","孤獨"]],["曲風",["流行","搖滾","爵士","Indie","電子","R&B","古典","嘻哈","民謠","後搖"]],["情境",["開車","工作","運動","睡前","派對","通勤"]],["年代",["70s以前","80s","90s","2000s","2010s","2020s"]],["自訂",["雨天","健身房"]]],"keyTags":["中文","英文","日文","韓文","粵語","純音樂","其他","70s以前","80s","90s","2000s","2010s","2020s"]};
-
-  var gate = document.getElementById("gate");
-  var btn = document.getElementById("signin");
-  var msg = document.getElementById("gate-msg");
-  gate.hidden = false;
-
-  function fail(text, detail) {
-    msg.innerHTML = "";
-    msg.className = "gate-body gate-err";
-    msg.appendChild(document.createTextNode(text));
-    if (detail) {
-      var small = document.createElement("div");
-      small.style.cssText = "margin-top:.6rem;font-size:.78rem;opacity:.75";
-      small.textContent = detail;
-      msg.appendChild(small);
-    }
-    btn.disabled = false;
-    btn.textContent = "再試一次";
-  }
-
-  function api(path, token) {
-    return fetch("https://sheets.googleapis.com/v4/spreadsheets/" + path, {
-      headers: { Authorization: "Bearer " + token },
-    }).then(function (r) {
-      if (!r.ok) {
-        return r.text().then(function (t) {
-          throw new Error("HTTP " + r.status + " " + t.slice(0, 200));
-        });
-      }
-      return r.json();
-    });
-  }
-
-  /* 把表格列轉成頁面要的形狀。
-     這段必須跟 music_tool.py 的 table_to_songs 保持一致：
-     同分類多標籤用「、」或半角逗號分隔，非音樂欄填 Y 就排除。 */
-  function parseSheet(header, rows) {
-    var idx = {};
-    header.forEach(function (n, i) { idx[String(n).trim()] = i; });
-    if (!("videoId" in idx)) throw new Error("表格缺少 videoId 欄");
-
-    var cats = CFG.categories.map(function (c) { return c[0]; })
-                 .filter(function (c) { return c in idx; });
-    var songs = [];
-
-    rows.forEach(function (row) {
-      function cell(name) {
-        var i = idx[name];
-        return (i === undefined || i >= row.length) ? "" : String(row[i]).trim();
-      }
-      var vid = cell("videoId");
-      if (!vid) return;
-      if (cell(CFG.nonMusic).toUpperCase() === "Y") return;   // 非音樂不進點唱機
-
-      var tags = [];
-      cats.forEach(function (cat) {
-        cell(cat).replace(/,/g, "、").split("、").forEach(function (raw) {
-          var t = raw.trim();
-          if (t && tags.indexOf(t) === -1) tags.push(t);
-        });
-      });
-      if (!tags.length) return;                                // 未標記的跳過
-
-      songs.push({ v: vid, t: cell("歌名"), c: cell("頻道"), g: tags });
+      trackListEl.appendChild(row);
     });
 
-    // 只留下實際被用到的標籤，避免出現一整排永遠是 0 的 chips
-    var used = {};
-    songs.forEach(function (s) { s.g.forEach(function (t) { used[t] = 1; }); });
-    var categories = CFG.categories
-      .map(function (pair) {
-        return [pair[0], pair[1].filter(function (t) { return used[t]; })];
-      })
-      .filter(function (pair) { return pair[1].length; });
-
-    return {
-      cap: CFG.cap,
-      categories: categories,
-      keyTags: CFG.keyTags.filter(function (t) { return used[t]; }),
-      songs: songs,
-    };
-  }
-
-  function loadWith(token) {
-    btn.textContent = "讀取中…";
-    // 先問工作表名稱 —— 它會隨帳號語言不同（Sheet1／工作表1），不能寫死
-    api(CFG.sheetId + "?fields=sheets.properties.title", token)
-      .then(function (meta) {
-        var tab = meta.sheets[0].properties.title;
-        return api(CFG.sheetId + "/values/" + encodeURIComponent(tab), token);
-      })
-      .then(function (res) {
-        var values = res.values || [];
-        if (values.length < 2) throw new Error("試算表沒有資料列");
-        var data = parseSheet(values[0], values.slice(1));
-        if (!data.songs.length) throw new Error("沒有任何已標記的曲目");
-        window.__boot(data);
-      })
-      .catch(function (e) {
-        fail("讀取試算表失敗。", String(e.message || e));
-      });
-  }
-
-  btn.addEventListener("click", function () {
-    if (!window.google || !google.accounts || !google.accounts.oauth2) {
-      fail("Google 登入元件還沒載入完成，請稍等一下再按。");
-      return;
+    if (state.matchingSongs.length > 100) {
+      const more = document.createElement("div");
+      more.style.cssText = "text-align:center; padding:0.8rem; color:var(--ink-dim); font-size:0.8rem;";
+      more.textContent = `...另有 ${state.matchingSongs.length - 100} 首未在預覽中列出`;
+      trackListEl.appendChild(more);
     }
-    btn.disabled = true;
-    btn.textContent = "等待授權…";
-    google.accounts.oauth2.initTokenClient({
-      client_id: CFG.clientId,
-      scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
-      callback: function (resp) {
-        if (resp && resp.access_token) loadWith(resp.access_token);
-        else fail("授權被取消或失敗。", resp && resp.error ? String(resp.error) : "");
-      },
-    }).requestAccessToken();
+  }
+
+  // 8. 播放模式 A：YouTube App 臨時歌單 (watch_videos)
+  btnYt.addEventListener("click", () => {
+    if (!state.active50.length) return;
+    const vids = state.active50.map(s => s.id).join(",");
+    const url = `https://www.youtube.com/watch_videos?video_ids=${vids}`;
+    window.open(url, "_blank");
   });
+
+  // 9. 播放模式 B：網頁內嵌播放器 (IFrame)
+  btnEmbed.addEventListener("click", () => {
+    state.inAppMode = !state.inAppMode;
+    btnEmbed.setAttribute("aria-pressed", state.inAppMode ? "true" : "false");
+    miniPlayerEl.hidden = !state.inAppMode;
+    if (state.inAppMode && state.active50.length) {
+      loadInAppVideo(0);
+    }
+  });
+
+  function playSingleSong(vid, title, artist) {
+    state.inAppMode = true;
+    btnEmbed.setAttribute("aria-pressed", "true");
+    miniPlayerEl.hidden = false;
+    nowTitle.textContent = title;
+    nowArtist.textContent = artist;
+    playerMount.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&enablejsapi=1" allow="autoplay" allowfullscreen></iframe>`;
+  }
+
+  function loadInAppVideo(index) {
+    if (!state.active50.length) return;
+    state.currentPlayingIndex = (index + state.active50.length) % state.active50.length;
+    const s = state.active50[state.currentPlayingIndex];
+    nowTitle.textContent = s.title;
+    nowArtist.textContent = s.artist || s.channel;
+    playerMount.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${s.id}?autoplay=1&enablejsapi=1" allow="autoplay" allowfullscreen></iframe>`;
+  }
+
+  btnNext.addEventListener("click", () => loadInAppVideo(state.currentPlayingIndex + 1));
+  btnPrev.addEventListener("click", () => loadInAppVideo(state.currentPlayingIndex - 1));
+  btnToggle.addEventListener("click", () => {
+    // 重新載入或暫停
+    loadInAppVideo(state.currentPlayingIndex);
+  });
+
 })();
 </script>
-
-
 </body>
 </html>

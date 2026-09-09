@@ -1,0 +1,8 @@
+# AI SDK
+# Gemini 不需要 SDK：ai_tagger/gemini_provider.py 用 urllib 直接打 REST API
+anthropic>=0.69.0
+
+# Google APIs (YouTube Data API v3, Google Sheets API v4, OAuth)
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.2.0   # googleapiclient.discovery 的傳遞依賴，未直接 import 但不可移除
+google-auth-oauthlib>=1.2.0

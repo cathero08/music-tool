@@ -1,50 +1,25 @@
-# 心情點唱機
+# 心情點唱機 (Music Tagger & Mobile Jukebox)
 
-把 YouTube 帳號裡的所有音樂用 AI 打上標籤（語言／心情／曲風／情境／年代），
-之後在手機上點幾個標籤就能立刻產出一份臨時歌單開始播。
-
-解決的問題：YouTube 只有「播放清單」一種分類方式，沒有曲風／年代／心情的維度，
-所以想聽特定調性的音樂只能手動翻。
-
-這是個人自用工具，不是套裝軟體 —— 要跑起來需要自己申請 Google OAuth 憑證。
-歡迎 fork 改成自己的。
-
-> 私人資訊（自己的 Artifact 網址、Sheet 網址）建議寫在 `LOCAL.md`，
-> 該檔已在 `.gitignore` 裡。
+把 YouTube 帳號裡的所有音樂用 AI 打上結構化標籤（**男女歌手／語言／曲風／年代／年份／心情／情境**），
+並部署至 **GitHub Pages** 打造專屬的手機 PWA 點唱機，隨時挑選標籤即可一鍵產出臨時歌單聽歌。
 
 ---
 
-## 運作方式
+## ⚡ 極簡架構特色 (Best Practices)
 
-分兩階段，因為執行頻率和裝置都不同：
-
-| | 在哪 | 何時 | 需要授權？ |
-|---|---|---|---|
-| **標記** `sync` | Mac | 有新增歌曲才跑 | YouTube 唯讀 + Anthropic API |
-| **聽歌** 手機網頁 | 手機 | 隨時 | 不需要 |
-
-手機端不需要後端或憑證：標籤資料在 `build` 時直接內嵌進網頁，播放則透過
-YouTube 自己的 `watch_videos` 臨時歌單機制（不消耗 API 配額、不需登入）。
-
-臨時歌單會落在 YouTube app 而不是 YouTube Music —— 這是 YouTube 自己的行為，
-無法從網頁端改變（Artifact 的 CSP 禁止跨網域請求，拿不到產生出來的 TLGG 清單 ID）。
-Premium 下 YouTube app 本身就能背景播放；聽到喜歡的組合按「儲存」就會變成
-常駐歌單，那份歌單在 YouTube Music 裡就看得到。
-
-### 為什麼用官方 API，不用 ytmusicapi
-
-實測結果：官方 Data API 讀得到帳號的全部播放清單，
-而且 `playlistItems.list(playlistId="LM")` 意外可用（官方文件未記載）——
-但實測該帳號的 **LM 完全是 LL（喜歡的影片）的子集**，也就是 LM 只是 YouTube 讚裡
-被歸類為音樂的那部分，不是獨立媒體庫。所以讀 `LL` + 所有播放清單就已涵蓋，
-不需要 `ytmusicapi`。
-
-> 你的帳號可能不同 —— 跑一次 `sync` 後用 `stats` 比對 YouTube Music app 裡
-> 「喜歡的音樂」的數量，就知道有沒有缺口。
-
-這也讓授權能維持在官方、唯讀、可單獨撤銷的 OAuth token；
-`ytmusicapi` 的瀏覽器 headers 模式要存的是等同整個 Google 帳號的工作階段 cookie，
-本專案刻意不採用。
+1. **AI 自動結構化打標籤（支援 0 元 Google Gemini 2.5 Flash）**：
+   - 包含**男女歌手 / 編制**（男歌手、女歌手、男女合唱、樂團/組合、純音樂）、**原唱歌手**、**年代/年份**、**曲風**、**心情**、**情境**。
+   - 推薦使用 [Google AI Studio](https://aistudio.google.com/) 免費取得 `GEMINI_API_KEY`（免綁信用卡，每天 1,500 次請求免費，千首歌 0 元標完）。亦支援 Anthropic Claude。
+2. **免寫後端（徹底消滅 Apps Script）**：
+   - 試算表直接啟用 Google 官方「發布到網路」，手機網頁純前端直讀 Google 官方 `gviz` 端點。
+   - 零 Apps Script 程式碼、零權限警告畫面、零冷啟動延遲。
+3. **100% 零機密外流，安心部署 GitHub Pages**：
+   - `index.html` 為純靜態外殼（不含任何歌曲名單、金鑰或 Sheet ID）。
+   - 所有憑證、Token 與個人音樂庫受 `.gitignore` 嚴格隔離。
+   - 內建資安查驗指令：`python3 music_tool.py check-security`。
+4. **雙模式播放**：
+   - **模式 A**：一鍵開啟 YouTube App 播放 50 首臨時歌單（超過 50 首支援一鍵「🔄 換一批」）。
+   - **模式 B**：網頁內嵌 YouTube 播放器，不跳轉 App 連續聽歌。
 
 ---
 
@@ -56,51 +31,37 @@ Premium 下 YouTube app 本身就能背景播放；聽到喜歡的組合按「�
 pip install -r requirements.txt
 ```
 
-### 2. YouTube 授權（唯讀）
+### 2. Google OAuth 憑證（YouTube 唯讀 + Sheet 寫入）
 
-1. 到 https://console.cloud.google.com 建立或選擇專案
-2. 啟用「**YouTube Data API v3**」
+1. 前往 https://console.cloud.google.com 建立或選擇專案
+2. 啟用 **YouTube Data API v3** 與 **Google Sheets API**
 3. 「憑證」→「建立憑證」→「OAuth 用戶端 ID」→ **桌面應用程式**
-   - 選桌面應用程式是因為它允許 loopback 轉址且比對時忽略 port，
-     不用登記任何 redirect URI。網頁應用程式會逐字比對，反而更麻煩。
-4. 下載 JSON，改名為 `client_secret.json` 放在此資料夾
-5. 「OAuth 同意畫面」→「測試使用者」→ 加入**你聽音樂那個 Google 帳號**
+4. 下載 JSON 改名為 `client_secret.json` 放置於本專案根目錄
+   （或將 Client ID / Secret 填入 `.env`）
+5. 「OAuth 同意畫面」→「測試使用者」→ 加入你聽音樂的 Google 帳號
 
-scope 只要 `youtube.readonly` —— 連寫入權限都不給。
+### 3. AI 標籤 API Key（推薦 Google Gemini，100% 免費）
 
-> 私人帳號建立的專案只能用「外部 + 測試中」，此模式下 refresh token 7 天過期，
-> 也就是隔一段時間跑 `sync` 要重新授權一次（瀏覽器點兩下）。因為 `sync` 本來就
-> 不常跑，通常可以接受。想免掉可以把應用程式發布到正式版，代價是授權時會出現
-> 「未經 Google 驗證」的警告畫面。
-
-### 3. Anthropic API key（可選）
-
-**只有想讓 `sync` 自動標記新歌時才需要。** 也可以完全不用 API key，
-改由 Claude Code 直接標記（見下方「沒有 API key 的標記方式」）。
-
-到 https://console.anthropic.com 取得，然後：
+前往 https://aistudio.google.com/ 登入後點擊「Get API key」→「Create API key」：
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export GEMINI_API_KEY="AIzaSy..."
+# 或直接寫入 .env 檔案中
 ```
-
-這跟 Claude Code 訂閱是分開計費的。首次標記約 700 首歌的成本大約 4 美元
-（`claude-opus-5`、medium effort），之後 `sync` 只標記新歌，幾乎不再花錢。
 
 ---
 
-## 使用
+## 日常使用
 
 ```bash
-python3 music_tool.py sync     # 抓媒體庫 + 標記新歌
-python3 music_tool.py build    # 產出 mood.html
-python3 music_tool.py stats    # 看標籤分佈
-python3 music_tool.py list -f 中文 放鬆   # 終端機預覽篩選結果
-python3 music_tool.py edit 周杰倫 +睡前 -派對   # 手動調整標籤
-python3 music_tool.py sheet-init               # 改用 Google Sheet 當共用資料庫
+python3 music_tool.py sync            # 抓取媒體庫 + AI 自動打標籤 + 寫入 Google Sheet
+python3 music_tool.py check-security  # 推送至 GitHub 前的資安防護檢查
+python3 music_tool.py stats           # 查看標籤分佈統計
+python3 music_tool.py list -f 中文 女歌手 放鬆   # 終端機預覽篩選
+python3 music_tool.py sheet-init      # 建立或指定共用 Google Sheet
 ```
 
-`build` / `stats` / `list` 支援 `--offline`（用本地快取，不讀 Sheet）。
+`stats` / `list` 支援 `--offline`（用本地快取，不讀 Sheet）。
 
 ### 哪個指令需要哪份授權
 
@@ -109,7 +70,7 @@ python3 music_tool.py sheet-init               # 改用 Google Sheet 當共用�
 | 指令 | YouTube<br>`token.pickle` | Sheets<br>`token_sheets.pickle` |
 |---|:---:|:---:|
 | `sync` | ✓ | ✓ |
-| `build`／`stats`／`list`／`edit` | — | ✓ |
+| `stats`／`list`／`edit` | — | ✓ |
 | `export`／`import`／`sheet-*` | — | ✓ |
 
 **只有 `sync` 會連 YouTube。** 因為 Sheet 是唯一真相，其他指令只需要讀寫 Sheet
@@ -143,10 +104,9 @@ python3 music_tool.py edit 小安 +悲傷 -y        # -y 跳過確認
 { "自訂": ["雨天", "健身房", "加班"] }
 ```
 
-分類名稱隨你取，會直接變成網頁上新的一排 chips。沒有任何歌曲用到的標籤
-`build` 時會自動略過，不會出現一排永遠是 0 的選項。
+分類名稱隨你取，會直接變成網頁上新的一排 chips。
 
-指派方式同上用 `edit`。改完記得 `build` 再請 Claude 重新發布。
+指派方式同上用 `edit`。改完重開網頁就生效，不需要任何發布步驟。
 
 ### 用 Google Sheets 當共用資料庫
 
@@ -217,13 +177,10 @@ python3 music_tool.py sheet-init --id 1a2B3cD4eF5gH6iJ7kL8mN9oP0qR
 
 **之後的日常**
 
-```bash
-# 在手機或電腦的 Google Sheets 上直接改標籤（Google 自動跨裝置同步）
-python3 music_tool.py build      # 讀 Sheet → 產生網頁
-# 再請 Claude 重新發布
-```
+在手機或電腦的 Google Sheets 上直接改標籤即可（Google 自動跨裝置同步），
+網頁下次開啟就是最新狀態，不需要任何額外步驟。
 
-`build` / `stats` / `list` 都會直接讀 Sheet，所以**不需要 pull 這個步驟**。
+`stats` / `list` 也會直接讀 Sheet，所以**不需要 pull 這個步驟**。
 沒網路或想快一點時加 `--offline` 用本地快取。
 
 `sync` 與 `edit` 會把結果寫回 Sheet，`manual_tag.py` 也一樣。
@@ -240,8 +197,6 @@ python3 music_tool.py build      # 讀 Sheet → 產生網頁
 
 **已知限制**
 
-- **網頁不會自己更新。** 頁面因 CSP 讀不到 Google Sheet，所以改完仍需
-  `build` + 重新發布。Sheet 同步的是你的編輯，不是點唱機。
 - **整張覆寫。** `sync`／`edit` 是把整張表重寫（一次 API 呼叫，避免半套狀態）。
   如果你正在手機上編輯而同時跑了 `sync`，可能被覆蓋 ——
   Sheets 有版本紀錄可以還原，但避免同時操作比較好。
@@ -258,54 +213,43 @@ python3 music_tool.py import        # 從 tags.csv 匯回
 
 ---
 
+## 為什麼一次只播 50 首
+
+`watch_videos` 的上限是 **50 首，而且超出的部分會被靜默丟棄**。
+
+實測（2026-09）：
+
+| 送出首數 | HTTP | 產生的 TLGG 清單 ID |
+|---|---|---|
+| 47 / 48 / 49 | 303 | 各自不同 |
+| 50 / 51 / 52 / 300 | 303 | **完全相同** |
+
+49 首以下每個數量都得到不同的清單（內容不同），但 50 首之後 ID 就凍結
+—— YouTube 只取前 50 首，其餘丟掉，**不報錯、不警告**。
+
+URL 長度不是瓶頸（300 首約 3646 字元仍正常回應），所以
+`PLAY_CAP` **不能調大** —— 調大只會得到「看起來成功但少了歌」的結果。
+符合條件超過 50 首時，頁面會隨機抽 50 首並提供「🔄 換一批」。
+
 ## 手機網頁
 
-`build` 會同時產出兩份，內容相同、外框不同：
+手機端只有一份 `index.html`，走 Google **gviz** 公開端點即時讀你自己的 Sheet。
 
-| 檔案 | 用途 | 進版控？ |
-|---|---|---|
-| `index.html` | **GitHub Pages 公開託管**、自架、或直接開啟 | ✅ 會 |
-| `mood.html` | 用 Artifact 發布到 claude.ai（私有頁面） | ❌ 不會 |
+`index.html` 是**通用版** —— 裡面沒有歌曲、沒有密鑰、沒有 spreadsheetId、
+沒有 client ID。試算表網址由使用者在頁面上貼入、存在自己的 localStorage。
+所以**同一個公開網址，每個人都能接自己的 Sheet**。
 
-`index.html` 是完整 HTML，含 viewport、theme-color、iOS「加入主畫面」標記、
-inline SVG favicon 與一份 CSP。單一檔案、零外部依賴、離線可用。
+> **前置條件**：gviz 端點只讀得到已開放檢視的試算表。請把你的 Sheet 設為
+> 「知道連結的任何人 → 檢視者」（或檔案 → 共用 → 發布到網路）。
+> 頁面是唯讀的，改標籤請用 CLI 的 `edit` 或直接在 Google Sheets 上改。
 
 ### 部署到 GitHub Pages
 
-1. repo → **Settings → Pages**
-2. **Source** 選 `Deploy from a branch`
-3. **Branch** 選 `main` + `/ (root)`，儲存
-4. 幾十秒後開 `https://<帳號>.github.io/<repo>/`
+repo → Settings → Pages → Source 選 `Deploy from a branch`、
+Branch 選 `main` + `/ (root)`，開 `https://<帳號>.github.io/<repo>/`。
 
-之後每次改標籤的流程：
-
-```bash
-# 在 Google Sheets 上改標籤（手機或電腦都行）
-python3 music_tool.py build
-git add index.html && git commit -m "更新標籤" && git push
-```
-
-推上去後 Pages 會自動重新部署。
-
-> HTTPS 下「複製網址」用的是 `navigator.clipboard`；用 `file://` 直接開檔時
-> 部分瀏覽器不算安全內容，會退回 `execCommand` 的相容路徑。兩條路都測過。
-
-### ⚠️ 這是公開的
-
-`index.html` 內嵌你**整個媒體庫**（全部歌名、頻道、videoId）。放上 GitHub Pages
-就是公開資訊 —— 這是刻意接受的取捨，`.gitignore` 裡有註記說明。
-
-- 頁面帶 `robots: noindex, nofollow`，不會被搜尋引擎收錄，但**不擋任何知道網址的人**
-- 想被搜尋收錄就把那行 meta 刪掉（在 `music_tool.py` 的 `STANDALONE_HEAD`）
-- 改變主意想收回：把 `index.html` 加進 `.gitignore`，**並且**
-  `git rm --cached index.html` —— 只改 `.gitignore` 不會讓已提交的檔案消失，
-  而且它仍留在 git 歷史裡
-
-裡面**沒有**任何憑證。推送前可以自己驗一次：
-
-```bash
-grep -cE 'GOCSPX-|sk-ant-|ya29\.|1//0' index.html    # 應為 0
-```
+因為 `index.html` 不含任何資料，**改完標籤不需要重新部署** ——
+頁面每次開啟都是 Sheet 的最新狀態。只有改動程式碼時才需要重新部署。
 
 ---
 
@@ -366,11 +310,12 @@ git status --short          # 這份清單就是會公開的內容
 git check-ignore -v token.pickle client_secret.json song_tags.json .env
 ```
 
-`git status` 應該只出現這 8 個檔案：
+`git status` 應該只出現這些（全部不含機密與個資）：
 
 ```
-.env.example  .gitignore  custom_tags.json  manual_tag.py
-music_tool.py  page_template.html  README.md  requirements.txt
+.env.example  .gitignore  ai_tagger/  custom_tags.json  index.html
+LICENSE  manifest.json  manual_tag.py  music_tool.py  README.md
+requirements.txt
 ```
 
 > ⚠️ 如果不小心提交過憑證，**改 `.gitignore` 沒有用** —— 它還在 git 歷史裡。
@@ -384,9 +329,7 @@ music_tool.py  page_template.html  README.md  requirements.txt
 | 檔案 | 說明 |
 |---|---|
 | `music_tool.py` | 主程式 |
-| `page_template.html` | 手機網頁模板（`build` 會把資料填進 `__DATA__`） |
-| `mood.html` | 給 Artifact 發布的版本（無 doctype／head，平台會補） |
-| `index.html` | 自架／直接開啟的完整 HTML |
+| `index.html` | 自架版（貼入試算表網址後讀 Sheet，不含資料） |
 | `song_tags.json` | Sheet 模式下是快取；未啟用 Sheet 時是主資料 |
 | `sheet.json` | 記住試算表 ID（存在即代表 Sheet 模式） |
 | `token_sheets.pickle` | Sheets 授權（與 YouTube 分開） |

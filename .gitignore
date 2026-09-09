@@ -1,0 +1,30 @@
+# ═══ 憑證與 token：絕對不能進版控 ═══
+.env
+client_secret.json
+# token.pickle / token_sheets.pickle —— 含 refresh token，等同持續存取權
+*.pickle
+
+# ═══ 指向你私人資料的設定 ═══
+# 你的 spreadsheetId
+sheet.json
+# 私人連結與備註
+LOCAL.md
+
+# ═══ 個人媒體庫內容（不是憑證，但是隱私）═══
+# 全部歌名、頻道、videoId
+song_tags.json
+# 同上，匯出格式
+tags.csv
+# Artifact 版（私有頁面用），不需要進版控
+mood.html
+
+# ═══ 前端部署說明 ═══
+# index.html 推上 GitHub Pages 公開託管：
+# 它已全面重構為「純靜態 PWA 外殼」，裡面完全不含任何個人歌曲資料、不含金鑰、不含試算表 ID。
+# 所有敏感資訊與個人歌單均由上述規則嚴格隔離在本地。
+# 標記流程的暫存
+.batch.json
+
+# ═══ 雜項 ═══
+.DS_Store
+__pycache__/
