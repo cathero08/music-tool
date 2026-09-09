@@ -102,6 +102,28 @@ python3 music_tool.py sheet-init               # 改用 Google Sheet 當共用�
 
 `build` / `stats` / `list` 支援 `--offline`（用本地快取，不讀 Sheet）。
 
+### 哪個指令需要哪份授權
+
+兩份 token 是分開的，用到的時機也不同：
+
+| 指令 | YouTube<br>`token.pickle` | Sheets<br>`token_sheets.pickle` |
+|---|:---:|:---:|
+| `sync` | ✓ | ✓ |
+| `build`／`stats`／`list`／`edit` | — | ✓ |
+| `export`／`import`／`sheet-*` | — | ✓ |
+
+**只有 `sync` 會連 YouTube。** 因為 Sheet 是唯一真相，其他指令只需要讀寫 Sheet
+—— 所以刪掉 `token.pickle` 之後，除了 `sync` 以外一切照常運作。
+
+想單獨測試 YouTube 授權（不抓資料、不寫任何東西）：
+
+```bash
+python3 -c "import music_tool as M; M.get_youtube(); print('OK')"
+```
+
+> `sync` 會用 YouTube 的值覆寫 Sheet 裡的**歌名與頻道**（YouTube 是這兩欄的
+> 權威來源）。在 Sheet 上手動改過歌名會被改回去；標籤不受影響。
+
 ### 自定義標籤
 
 **改既有標籤** —— `edit` 依歌名或頻道關鍵字批次調整：
@@ -236,6 +258,57 @@ python3 music_tool.py import        # 從 tags.csv 匯回
 
 ---
 
+## 手機網頁
+
+`build` 會同時產出兩份，內容相同、外框不同：
+
+| 檔案 | 用途 | 進版控？ |
+|---|---|---|
+| `index.html` | **GitHub Pages 公開託管**、自架、或直接開啟 | ✅ 會 |
+| `mood.html` | 用 Artifact 發布到 claude.ai（私有頁面） | ❌ 不會 |
+
+`index.html` 是完整 HTML，含 viewport、theme-color、iOS「加入主畫面」標記、
+inline SVG favicon 與一份 CSP。單一檔案、零外部依賴、離線可用。
+
+### 部署到 GitHub Pages
+
+1. repo → **Settings → Pages**
+2. **Source** 選 `Deploy from a branch`
+3. **Branch** 選 `main` + `/ (root)`，儲存
+4. 幾十秒後開 `https://<帳號>.github.io/<repo>/`
+
+之後每次改標籤的流程：
+
+```bash
+# 在 Google Sheets 上改標籤（手機或電腦都行）
+python3 music_tool.py build
+git add index.html && git commit -m "更新標籤" && git push
+```
+
+推上去後 Pages 會自動重新部署。
+
+> HTTPS 下「複製網址」用的是 `navigator.clipboard`；用 `file://` 直接開檔時
+> 部分瀏覽器不算安全內容，會退回 `execCommand` 的相容路徑。兩條路都測過。
+
+### ⚠️ 這是公開的
+
+`index.html` 內嵌你**整個媒體庫**（全部歌名、頻道、videoId）。放上 GitHub Pages
+就是公開資訊 —— 這是刻意接受的取捨，`.gitignore` 裡有註記說明。
+
+- 頁面帶 `robots: noindex, nofollow`，不會被搜尋引擎收錄，但**不擋任何知道網址的人**
+- 想被搜尋收錄就把那行 meta 刪掉（在 `music_tool.py` 的 `STANDALONE_HEAD`）
+- 改變主意想收回：把 `index.html` 加進 `.gitignore`，**並且**
+  `git rm --cached index.html` —— 只改 `.gitignore` 不會讓已提交的檔案消失，
+  而且它仍留在 git 歷史裡
+
+裡面**沒有**任何憑證。推送前可以自己驗一次：
+
+```bash
+grep -cE 'GOCSPX-|sk-ant-|ya29\.|1//0' index.html    # 應為 0
+```
+
+---
+
 ## 上 GitHub 前的安全檢查
 
 ### 絕對不能提交（已在 `.gitignore`）
@@ -266,7 +339,20 @@ MUSIC_TOOL_SHEET_SCOPE=...    # 預設 drive.file，通常不用改
 ANTHROPIC_API_KEY=...         # 只有要讓 sync 自動標記時才需要
 ```
 
-範本見 `.env.example`。**token 檔沒有環境變數版本** —— 它們是授權流程產生的快取，
+範本見 `.env.example`：複製成 `.env` 填值即可，**程式啟動時會自動載入**
+（內建解析，不需要 python-dotenv）。兩個刻意的行為：
+
+- **已存在的環境變數優先** —— 真實環境勝過 `.env` 檔，這是 dotenv 慣例
+- **空值直接略過** —— `ANTHROPIC_API_KEY=` 不會被設成空字串，
+  否則 anthropic SDK 拿到空 key，錯誤訊息會變得難懂
+
+`.env` 建議設成只有自己能讀：
+
+```bash
+chmod 600 .env
+```
+
+**token 檔沒有環境變數版本** —— 它們是授權流程產生的快取，
 本來就該留在本機，用 `.gitignore` 擋掉就好。
 
 ### 自己驗證一次
@@ -299,7 +385,8 @@ music_tool.py  page_template.html  README.md  requirements.txt
 |---|---|
 | `music_tool.py` | 主程式 |
 | `page_template.html` | 手機網頁模板（`build` 會把資料填進 `__DATA__`） |
-| `mood.html` | 產出的網頁，不要手改 —— 下次 `build` 會覆蓋 |
+| `mood.html` | 給 Artifact 發布的版本（無 doctype／head，平台會補） |
+| `index.html` | 自架／直接開啟的完整 HTML |
 | `song_tags.json` | Sheet 模式下是快取；未啟用 Sheet 時是主資料 |
 | `sheet.json` | 記住試算表 ID（存在即代表 Sheet 模式） |
 | `token_sheets.pickle` | Sheets 授權（與 YouTube 分開） |
