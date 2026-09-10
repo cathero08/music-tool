@@ -4,36 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#191512">
+<meta name="theme-color" content="#07060e">
 <meta name="description" content="依男女歌手、心情、曲風、年代挑歌，一鍵在 YouTube 開始播放">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="心情點唱機">
 <meta name="robots" content="noindex, nofollow">
 <link rel="manifest" href="./manifest.json">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <title>心情點唱機 - 音樂標籤與行動播放</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src https://docs.google.com https://*.google.com https://*.googleusercontent.com; img-src data: https://i.ytimg.com https://img.youtube.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://docs.google.com https://*.google.com https://*.googleusercontent.com; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; form-action 'none'; base-uri 'none'">
 </head>
 <body>
+<div class="fx" aria-hidden="true">
+  <span class="fx-orb fx-orb-a"></span>
+  <span class="fx-orb fx-orb-b"></span>
+  <span class="fx-orb fx-orb-c"></span>
+</div>
 <style>
   :root {
-    --ground:   #191512;
-    --panel:    #241E1A;
-    --panel-hi: #2E2620;
-    --line:     #3A3029;
-    --ink:      #F2EBE3;
-    --ink-dim:  #9A8F86;
-    --brass:    #C9A227;
-    --brass-lo: #8A6F1B;
-    --sage:     #7D9471;
-    --red:      #C85A5A;
+    --ground:      #07060e;
+    --panel:       rgba(14, 12, 28, 0.58);
+    --panel-hi:    rgba(255, 255, 255, 0.08);
+    --line:        rgba(255, 255, 255, 0.12);
+    --ink:         #F8FAFC;
+    --ink-dim:     rgba(226, 232, 240, 0.64);
+    --brass:       #34D399;
+    --brass-lo:    #10B981;
+    --sage:        #A78BFA;
+    --on-accent:   #022c22;
+    --red:         #FB7185;
+    --purple:      #8B5CF6;
+    --glass:       linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+    --glass-bg:    rgba(255, 255, 255, 0.07);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glow-green:  0 0 28px rgba(16, 185, 129, 0.42);
+    --glow-purple: 0 0 28px rgba(139, 92, 246, 0.28);
     --sans: "PingFang TC", "Noto Sans TC", "Hiragino Sans", "Microsoft JhengHei",
             -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --blur: blur(22px) saturate(1.45);
   }
 
   * { box-sizing: border-box; }
+  html { overflow-x: hidden; max-width: 100%; background: var(--ground); }
+  button, a, input { touch-action: manipulation; }
 
   body {
     margin: 0;
@@ -43,133 +60,269 @@
     font-size: 16px;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
-    padding-bottom: 7rem;
+    overflow-x: hidden;
+    max-width: 100%;
+    min-height: 100dvh;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    position: relative;
+  }
+  body:not(.no-yt-embed) {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   }
 
-  .wrap { max-width: 36rem; margin: 0 auto; padding: 0 1rem; }
+  .fx {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
+  .fx-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(72px);
+    will-change: transform;
+  }
+  .fx-orb-a {
+    width: 22rem; height: 22rem; top: -7rem; left: -8rem;
+    background: #6d28d9; opacity: 0.55;
+  }
+  .fx-orb-b {
+    width: 26rem; height: 26rem; bottom: -9rem; right: -11rem;
+    background: #059669; opacity: 0.5;
+  }
+  .fx-orb-c {
+    width: 14rem; height: 14rem; top: 38%; left: 28%;
+    background: #4c1d95; opacity: 0.32;
+  }
+  .fx::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.16), transparent 52%),
+      radial-gradient(ellipse at 80% 100%, rgba(16, 185, 129, 0.14), transparent 48%),
+      radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.55) 100%);
+  }
+
+  .wrap, .readout, .mini-player { position: relative; z-index: 1; }
+  .wrap {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 0 max(1rem, env(safe-area-inset-left, 0px));
+  }
+
+  .ico { width: 1rem; height: 1rem; fill: currentColor; flex: none; display: block; }
 
   /* ── 頂部設定提示與門檻面板 ── */
   .gate {
     background: var(--panel);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
     border: 1px solid var(--line);
-    border-radius: 0.75rem;
+    border-radius: 1.15rem;
     padding: 1.25rem;
     margin: 1.2rem 0;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
   }
   .gate-title {
-    font-size: 1.15rem; font-weight: 700; color: var(--brass); margin: 0 0 0.5rem;
+    font-size: 1.12rem; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--ink); margin: 0 0 0.5rem;
   }
   .gate-body { font-size: 0.88rem; color: var(--ink-dim); line-height: 1.6; margin-bottom: 0.85rem; }
+  .gate-label {
+    display: block; font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-dim); margin: 0.55rem 0 0.3rem;
+  }
   .gate-input {
     width: 100%;
-    background: var(--ground);
+    background: rgba(0,0,0,0.28);
     color: var(--ink);
     border: 1px solid var(--line);
-    border-radius: 0.45rem;
-    padding: 0.65rem 0.8rem;
-    font-size: 0.9rem;
+    border-radius: 0.85rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 16px;
     font-family: var(--mono);
-    margin-bottom: 0.6rem;
+    margin-bottom: 0;
   }
-  .gate-input:focus { outline: none; border-color: var(--brass); }
-  .gate-actions { display: flex; gap: 0.5rem; }
+  .gate-input:focus { outline: none; border-color: rgba(52, 211, 153, 0.55); box-shadow: var(--glow-green); }
+  .extracted-hint {
+    margin-top: 0.45rem; font-size: 0.78rem; color: var(--brass);
+    word-break: break-all; line-height: 1.45;
+  }
+  .extracted-hint[hidden] { display: none; }
+  .gate-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+  .gate-actions .btn-primary, .gate-actions .btn-subtle { min-height: 44px; }
   .btn-primary {
-    background: var(--brass); color: #191512; font-weight: 600;
-    border: none; border-radius: 0.45rem; padding: 0.6rem 1.2rem; cursor: pointer;
+    background: linear-gradient(180deg, #6ee7b7, #10b981);
+    color: var(--on-accent); font-weight: 700;
+    border: none; border-radius: 500px; padding: 0.6rem 1.25rem; cursor: pointer;
+    box-shadow: var(--glow-green), inset 0 1px 0 rgba(255,255,255,0.35);
   }
+  .btn-primary:active { filter: brightness(1.08); }
   .btn-subtle {
-    background: transparent; color: var(--ink-dim);
-    border: 1px solid var(--line); border-radius: 0.45rem; padding: 0.6rem 1rem; cursor: pointer;
+    background: var(--glass-bg); color: var(--ink-dim);
+    border: 1px solid var(--line); border-radius: 500px; padding: 0.6rem 1rem; cursor: pointer;
   }
 
   /* ── 讀數面板（置頂）── */
   .readout {
-    position: sticky; top: 0; z-index: 10;
-    background: var(--panel);
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(7, 6, 14, 0.52);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
     border-bottom: 1px solid var(--line);
-    box-shadow: 0 8px 24px -12px #000;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+    padding-top: env(safe-area-inset-top, 0px);
   }
   .readout-inner {
-    max-width: 36rem; margin: 0 auto; padding: 0.8rem 1rem;
-    display: flex; flex-direction: column; gap: 0.75rem;
+    max-width: 36rem; margin: 0 auto;
+    padding: 0.7rem max(1rem, env(safe-area-inset-right, 0px)) 0.85rem max(1rem, env(safe-area-inset-left, 0px));
+    display: flex; flex-direction: column; gap: 0.7rem;
   }
-  .dial-row { display: flex; align-items: baseline; justify-content: space-between; }
-  .dial { display: flex; align-items: baseline; gap: 0.5rem; }
+  .dial-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+  .dial { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
   .dial-num {
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
-    font-size: 2.5rem; font-weight: 700; line-height: 1;
-    color: var(--brass);
+    font-size: 2.25rem; font-weight: 700; line-height: 1;
+    letter-spacing: -0.04em;
+    color: #ecfdf5;
+    text-shadow: 0 0 22px rgba(52, 211, 153, 0.55);
   }
-  .dial-num.zero { color: var(--ink-dim); }
-  .dial-unit { font-size: 0.95rem; color: var(--ink-dim); }
-  .dial-stat { font-size: 0.75rem; color: var(--ink-dim); }
+  .dial-num.zero { color: var(--ink-dim); text-shadow: none; }
+  .dial-unit { font-size: 0.82rem; color: var(--ink-dim); letter-spacing: 0.04em; }
+  .dial-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex: none; }
+  .dial-stat { font-size: 0.72rem; color: var(--ink-dim); text-align: right; }
 
-  .actions { display: flex; gap: 0.5rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   button {
     font-family: inherit; font-size: 0.95rem; cursor: pointer;
     border-radius: 0.5rem; border: 1px solid transparent;
-    padding: 0.65rem 0.9rem; transition: all 0.15s ease;
+    padding: 0.65rem 0.85rem; transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    min-height: 44px;
   }
   button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
   .btn-play {
-    flex: 2; background: var(--brass); color: #191512; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    flex: 1 1 11rem; min-width: 0;
+    background: linear-gradient(180deg, #6ee7b7 0%, #10b981 100%);
+    color: var(--on-accent); font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    border-radius: 500px;
+    box-shadow: var(--glow-green), 0 10px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.38);
   }
-  .btn-play:disabled { background: var(--line); color: var(--ink-dim); cursor: not-allowed; }
-  .btn-play:not(:disabled):active { filter: brightness(0.9); }
+  .btn-play:disabled {
+    background: rgba(255,255,255,0.08); color: var(--ink-dim); cursor: not-allowed;
+    box-shadow: none;
+  }
+  .btn-play:not(:disabled):active { filter: brightness(1.06); transform: scale(0.985); }
+  .count-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.5rem; height: 1.35rem; padding: 0 0.45rem;
+    border-radius: 999px;
+    background: rgba(2, 44, 34, 0.22);
+    font-family: var(--mono); font-size: 0.75rem; font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .btn-play:disabled .count-pill { background: rgba(255,255,255,0.08); }
   .btn-reroll {
-    flex: 1; background: var(--panel-hi); color: var(--ink); border-color: var(--line);
-    display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+    flex: 0 1 auto;
+    background: var(--glass-bg); color: var(--ink);
+    border-color: var(--line);
+    border-radius: 500px;
+    display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+    white-space: nowrap;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
-  .btn-reroll:active { background: var(--line); }
+  .btn-reroll:active { background: rgba(255,255,255,0.14); }
   .btn-embed-toggle {
-    background: transparent; color: var(--ink-dim); border-color: var(--line); padding: 0.65rem;
+    background: var(--glass-bg); color: var(--ink-dim); border-color: var(--line);
+    padding: 0.65rem 0.8rem; border-radius: 500px; white-space: nowrap;
   }
   .btn-embed-toggle[aria-pressed="true"] {
-    background: var(--sage); border-color: var(--sage); color: #16190F;
+    background: linear-gradient(180deg, #6ee7b7, #10b981);
+    border-color: transparent; color: var(--on-accent);
   }
+  body.no-yt-embed .btn-embed-toggle { display: none; }
+  .ios-yt-note {
+    margin: 0; font-size: 0.72rem; color: var(--ink-dim); line-height: 1.4;
+  }
+  .ios-yt-note[hidden] { display: none; }
+  .install-hint {
+    margin: 0.75rem 0 0;
+    background: var(--panel);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    color: var(--ink);
+    border-radius: 1rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    box-shadow: var(--glow-purple);
+  }
+  .install-hint[hidden] { display: none; }
 
   /* ── 搜尋欄 ── */
-  .search { position: relative; margin-top: 1rem; }
+  .search { position: relative; margin-top: 1.1rem; }
+  .search-ico {
+    position: absolute; left: 0.95rem; top: 50%; transform: translateY(-50%);
+    width: 1rem; height: 1rem; fill: var(--ink-dim); pointer-events: none;
+  }
   .search input {
-    width: 100%; font-family: inherit; font-size: 0.95rem;
-    background: var(--panel); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 0.5rem;
-    padding: 0.65rem 2.2rem 0.65rem 0.85rem;
+    width: 100%; font-family: inherit; font-size: 16px;
+    background: var(--panel);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+    color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.8rem 2.6rem 0.8rem 2.45rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
   }
   .search input::placeholder { color: var(--ink-dim); }
-  .search input:focus { outline: none; border-color: var(--brass-lo); }
+  .search input:focus { outline: none; border-color: rgba(167, 139, 250, 0.55); box-shadow: var(--glow-purple); }
   .search-clear {
     position: absolute; right: 0.3rem; top: 50%; transform: translateY(-50%);
     background: none; border: none; color: var(--ink-dim);
     font-size: 1.2rem; padding: 0.3rem 0.5rem;
+    min-height: 44px; min-width: 44px;
   }
 
   /* ── 標籤分類組 ── */
-  .group { margin-top: 1.25rem; }
-  .group-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
+  .group { margin-top: 1.35rem; }
+  .group-head { display: flex; align-items: baseline; gap: 0.55rem; margin-bottom: 0.6rem; }
   .group-label {
-    font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--ink-dim);
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.72);
   }
-  .group-hint { font-size: 0.7rem; color: var(--line); }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .group-hint { font-size: 0.68rem; color: rgba(167, 139, 250, 0.7); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
   .chip {
-    background: var(--panel); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 1.4rem;
-    padding: 0.4rem 0.8rem; font-size: 0.9rem;
+    background: var(--glass);
+    background-color: var(--glass-bg);
+    color: var(--ink);
+    border: 1px solid var(--glass-border, var(--line));
+    border-radius: 999px;
+    padding: 0.38rem 0.35rem 0.38rem 0.85rem;
+    font-size: 0.88rem;
     display: inline-flex; align-items: center;
+    min-height: 40px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.16);
   }
   .chip .n {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
-    font-size: 0.75rem; color: var(--ink-dim); margin-left: 0.35rem;
+    font-size: 0.68rem; font-weight: 600; color: var(--ink);
+    margin-left: 0.4rem;
+    min-width: 1.45rem; height: 1.3rem; padding: 0 0.4rem;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.28);
+    display: inline-flex; align-items: center; justify-content: center;
   }
   .chip[aria-pressed="true"] {
-    background: var(--sage); border-color: var(--sage); color: #16190F; font-weight: 600;
+    background: linear-gradient(180deg, rgba(110, 231, 183, 0.38), rgba(16, 185, 129, 0.18));
+    border-color: rgba(110, 231, 183, 0.65);
+    color: #ecfdf5; font-weight: 700;
+    box-shadow: var(--glow-green), inset 0 1px 0 rgba(255,255,255,0.28);
   }
-  .chip[aria-pressed="true"] .n { color: #16190F; opacity: 0.65; }
+  .chip[aria-pressed="true"] .n {
+    background: rgba(2, 44, 34, 0.35); color: #ecfdf5; opacity: 1;
+  }
   .chip:disabled { opacity: 0.28; cursor: not-allowed; }
 
   .reset-btn {
@@ -179,71 +332,95 @@
   }
 
   /* ── 收錄歌曲預覽列表 ── */
-  .preview { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .preview { margin-top: 1.5rem; padding-top: 0.25rem; }
   .list-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.7rem;
   }
   .preview-label {
-    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--ink-dim);
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: rgba(226, 232, 240, 0.72);
   }
   .track {
     display: flex; gap: 0.75rem; align-items: flex-start;
-    padding: 0.65rem 0; border-bottom: 1px solid var(--panel);
+    padding: 0.8rem 0.85rem;
+    margin-bottom: 0.45rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
   }
   .track-num {
-    font-family: var(--mono); font-size: 0.75rem; color: var(--line);
-    min-width: 1.8rem; text-align: right; padding-top: 0.2rem;
+    font-family: var(--mono); font-size: 0.72rem; color: rgba(167, 139, 250, 0.7);
+    min-width: 1.5rem; text-align: right; padding-top: 0.2rem;
   }
   .track-body { flex: 1; min-width: 0; }
-  .track-title { font-size: 0.92rem; font-weight: 600; line-height: 1.35; word-break: break-word; }
+  .track-title { font-size: 0.92rem; font-weight: 600; line-height: 1.35; word-break: break-word; letter-spacing: -0.01em; }
   .track-artist { font-size: 0.78rem; color: var(--ink-dim); margin-top: 0.15rem; }
-  .track-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+  .track-tags { display: flex; flex-wrap: wrap; gap: 0.28rem; margin-top: 0.4rem; }
   .tag-badge {
-    font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 0.6rem;
-    background: var(--ground); color: var(--ink-dim); border: 1px solid var(--line);
+    font-size: 0.68rem; padding: 0.18rem 0.5rem; border-radius: 999px;
+    background: rgba(255,255,255,0.06); color: var(--ink-dim);
+    border: 1px solid var(--line);
     cursor: pointer; font-family: inherit; display: inline-block;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
   }
-  .tag-badge:hover { background: var(--line); color: var(--ink); }
-  .tag-badge.key { color: var(--brass); border-color: var(--brass-lo); }
-  .tag-badge.active { background: var(--brass); color: #1a1208; border-color: var(--brass); font-weight: 600; }
-  .tag-badge.key.active { background: var(--brass); color: #1a1208; border-color: var(--brass); }
+  .tag-badge:hover { background: rgba(255,255,255,0.12); color: var(--ink); }
+  .tag-badge.key { color: #c4b5fd; border-color: rgba(167, 139, 250, 0.4); }
+  .tag-badge.active {
+    background: linear-gradient(180deg, rgba(110, 231, 183, 0.4), rgba(16, 185, 129, 0.22));
+    color: #ecfdf5; border-color: rgba(110, 231, 183, 0.6); font-weight: 700;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.28);
+  }
+  .tag-badge.key.active { color: #ecfdf5; }
 
   /* ── 底部內嵌播放器 ── */
   .mini-player {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-    background: #15110E; border-top: 1px solid var(--line);
-    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
-    box-shadow: 0 -8px 24px -6px rgba(0,0,0,0.85);
+    background: rgba(7, 6, 14, 0.62);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+    border-top: 1px solid var(--line);
+    padding: 0.75rem max(1rem, env(safe-area-inset-right, 0px)) max(0.75rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+    box-shadow: 0 -16px 40px rgba(0,0,0,0.45);
   }
-  .mini-player[hidden] { display: none; }
+  .mini-player[hidden],
+  body.no-yt-embed .mini-player { display: none !important; }
   .mini-inner {
     max-width: 36rem; margin: 0 auto;
     display: flex; align-items: center; gap: 0.75rem;
   }
   .player-frame-box {
-    width: 56px; height: 38px; background: #000; border-radius: 0.3rem; overflow: hidden; flex: none;
+    width: 56px; height: 38px; background: #000; border-radius: 0.55rem; overflow: hidden; flex: none;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
   }
   .player-frame-box iframe { width: 100%; height: 100%; border: none; }
   .player-meta { flex: 1; min-width: 0; }
   .player-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .player-sub { font-size: 0.72rem; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .player-ctrls { display: flex; gap: 0.4rem; align-items: center; flex: none; }
+  .player-ctrls { display: flex; gap: 0.35rem; align-items: center; flex: none; }
   .btn-ctrl {
-    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 50%; width: 34px; height: 34px; padding: 0;
+    background: var(--glass-bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 50%; width: 44px; height: 44px; padding: 0;
     display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+    min-height: 44px;
   }
   .btn-switch-sheet {
-    position: absolute; top: 0.6rem; right: 0.75rem;
-    background: transparent; border: 1px solid var(--line);
-    color: var(--ink-dim); border-radius: 0.5rem;
-    padding: 0.25rem 0.6rem; font-size: 0.72rem; cursor: pointer;
+    background: var(--glass-bg); border: 1px solid var(--line);
+    color: var(--ink-dim); border-radius: 999px;
+    padding: 0.2rem 0.65rem; font-size: 0.72rem; cursor: pointer;
+    min-height: 32px;
+    display: inline-flex; align-items: center; gap: 0.25rem;
     transition: background 0.15s, color 0.15s;
   }
-  .btn-switch-sheet:hover { background: var(--panel); color: var(--ink); }
+  .btn-switch-sheet[hidden] { display: none; }
+  .btn-switch-sheet:hover { background: rgba(255,255,255,0.12); color: var(--ink); }
+  @media (max-width: 400px) {
+    .dial-num { font-size: 1.85rem; }
+    .btn-play { font-size: 0.88rem; }
+    .fx-orb-a { width: 16rem; height: 16rem; }
+    .fx-orb-b { width: 18rem; height: 18rem; }
+  }
 </style>
 
 <div class="readout">
@@ -253,22 +430,29 @@
         <span class="dial-num zero" id="count">0</span>
         <span class="dial-unit">首選取</span>
       </div>
-      <div class="dial-stat" id="total-stat">載入中...</div>
+      <div class="dial-side">
+        <div class="dial-stat" id="total-stat">載入中...</div>
+        <button class="btn-switch-sheet" id="btn-switch-sheet" hidden title="清除連線，重新輸入試算表">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11v3l4-4-4-4v3H5v6h2V7zm10 10H6v-3l-4 4 4 4v-3h13v-6h-2v4z"/></svg>
+          切換
+        </button>
+      </div>
     </div>
     <div class="actions">
       <button class="btn-play" id="btn-yt" disabled>
-        ▶ 在 YouTube 播放 (<span id="play-count">0</span>)
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+        YouTube 播放
+        <span class="count-pill" id="play-count">0</span>
       </button>
       <button class="btn-reroll" id="btn-reroll" style="display:none;" title="符合超過50首，隨機換下一批">
-        🔄 換一批
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A8 8 0 1 0 19.73 14h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h8V3l-3.35 3.35z"/></svg>
+        換一批
       </button>
       <button class="btn-embed-toggle" id="btn-embed" aria-pressed="false" title="在網頁內嵌播放器播放">
-        🎧 內嵌
+        內嵌
       </button>
     </div>
-    <button class="btn-switch-sheet" id="btn-switch-sheet" style="display:none;" title="清除連線，重新輸入試算表">
-      ⇄ 切換 Sheet
-    </button>
+    <p class="ios-yt-note" id="ios-yt-note" hidden>iPhone 無法在網頁內嵌 YouTube，點播放會改開 YouTube App。</p>
   </div>
 </div>
 
@@ -277,18 +461,28 @@
   <div class="gate" id="gate">
     <div class="gate-title">連接你的 Google 試算表</div>
     <div class="gate-body">
-      輸入你的 Google 試算表 ID 或發布連結。試算表請先設為「知道連結的使用者可檢視」或「發布到網路」。
+      把試算表<strong style="color:var(--ink); font-weight:600;">完整網址</strong>貼上，系統會自動取出 ID。也可以只填 ID。請先設為「知道連結的使用者可檢視」。
     </div>
-    <input type="text" id="input-sheet-id" class="gate-input" placeholder="例如：1A2b3C4d5E6f7G8h9I0jK-L_M...">
+    <label class="gate-label" for="input-sheet-url">完整網址</label>
+    <input type="text" id="input-sheet-url" class="gate-input" inputmode="url" autocomplete="off" spellcheck="false"
+      placeholder="https://docs.google.com/spreadsheets/d/……/edit">
+    <label class="gate-label" for="input-sheet-id">試算表 ID</label>
+    <input type="text" id="input-sheet-id" class="gate-input" autocomplete="off" spellcheck="false"
+      placeholder="貼上網址後會自動填入，也可直接輸入">
+    <div class="extracted-hint" id="extracted-hint" hidden></div>
     <div class="gate-actions">
       <button class="btn-primary" id="btn-connect">連接試算表</button>
-      <button class="btn-subtle" id="btn-reset-sheet" style="display:none;">清除設定</button>
+      <button class="btn-subtle" id="btn-reset-sheet" hidden>清除設定</button>
     </div>
     <div id="gate-msg" style="margin-top:0.6rem; font-size:0.8rem; color:var(--brass);"></div>
+  </div>
+  <div class="install-hint" id="ios-install" hidden>
+    用 Safari 打開此頁 → 點底部分享 →「加入主畫面」，就能像 App 一樣使用。
   </div>
 
   <!-- 關鍵字即時搜尋 -->
   <div class="search">
+    <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     <input type="search" id="search-input" placeholder="搜尋歌名、歌手、頻道或標籤...">
     <button class="search-clear" id="search-clear" hidden>×</button>
   </div>
@@ -328,6 +522,7 @@
   "use strict";
 
   const LS_KEY = "music_jukebox_sheet_id";
+  const LS_GID_KEY = "music_jukebox_sheet_gid";
   const PLAY_CAP = 50;
 
   // 標準分類定義（當試算表標頭包含時自動分類）
@@ -355,11 +550,15 @@
 
   // DOM 元素
   const gateEl = document.getElementById("gate");
+  const sheetUrlEl = document.getElementById("input-sheet-url");
   const sheetInputEl = document.getElementById("input-sheet-id");
+  const extractedHintEl = document.getElementById("extracted-hint");
   const connectBtn = document.getElementById("btn-connect");
   const resetSheetBtn = document.getElementById("btn-reset-sheet");
   const switchSheetBtn = document.getElementById("btn-switch-sheet");
   const gateMsgEl = document.getElementById("gate-msg");
+  const iosInstallEl = document.getElementById("ios-install");
+  const iosYtNoteEl = document.getElementById("ios-yt-note");
 
   const countEl = document.getElementById("count");
   const playCountEl = document.getElementById("play-count");
@@ -383,33 +582,121 @@
   const btnToggle = document.getElementById("btn-toggle");
   const btnNext = document.getElementById("btn-next");
 
+  function isIOSDevice() {
+    const ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod/i.test(ua) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  function isStandalonePWA() {
+    return window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+  }
+  const noEmbedYouTube = isIOSDevice();
+  if (noEmbedYouTube) {
+    document.body.classList.add("no-yt-embed");
+    btnEmbed.hidden = true;
+    iosYtNoteEl.hidden = false;
+  }
+  if (isIOSDevice() && !isStandalonePWA()) {
+    iosInstallEl.hidden = false;
+  }
+
+  function parseSheetInput(str) {
+    const s = (str || "").trim();
+    if (!s) return { id: "", gid: "" };
+    const idMatch = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    const gidMatch = s.match(/[?#&]gid=([0-9]+)/) || s.match(/gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : "";
+    if (idMatch) return { id: idMatch[1], gid };
+    return { id: s, gid };
+  }
+
+  function sheetUrlFromId(id, gid) {
+    if (!id) return "";
+    let u = "https://docs.google.com/spreadsheets/d/" + id + "/edit";
+    if (gid) u += "?gid=" + gid + "#gid=" + gid;
+    return u;
+  }
+
+  function showExtractedHint(parsed) {
+    if (!parsed.id) {
+      extractedHintEl.hidden = true;
+      extractedHintEl.textContent = "";
+      return;
+    }
+    extractedHintEl.hidden = false;
+    extractedHintEl.textContent = parsed.gid
+      ? "已取出 ID：" + parsed.id + "　工作表 gid：" + parsed.gid
+      : "已取出 ID：" + parsed.id;
+  }
+
+  function onUrlFieldChange() {
+    const parsed = parseSheetInput(sheetUrlEl.value);
+    if (parsed.id && /\/spreadsheets\/d\//.test(sheetUrlEl.value)) {
+      sheetInputEl.value = parsed.id;
+      showExtractedHint(parsed);
+    } else if (parsed.id && parsed.id === sheetUrlEl.value.trim()) {
+      sheetInputEl.value = parsed.id;
+      extractedHintEl.hidden = true;
+    }
+  }
+
+  sheetUrlEl.addEventListener("input", onUrlFieldChange);
+  sheetUrlEl.addEventListener("paste", () => setTimeout(onUrlFieldChange, 0));
+  sheetInputEl.addEventListener("input", () => {
+    const parsed = parseSheetInput(sheetInputEl.value);
+    if (parsed.id && /\/spreadsheets\/d\//.test(sheetInputEl.value)) {
+      sheetInputEl.value = parsed.id;
+      sheetUrlEl.value = sheetUrlEl.value.trim() || sheetUrlFromId(parsed.id, parsed.gid);
+      showExtractedHint(parsed);
+    }
+  });
+
   // 1. 初始化與參數讀取
   const urlParams = new URLSearchParams(window.location.search);
-  const paramId = urlParams.get("id");
-  const savedId = paramId || localStorage.getItem(LS_KEY) || "";
+  const paramRaw = urlParams.get("url") || urlParams.get("id") || "";
+  const savedId = localStorage.getItem(LS_KEY) || "";
+  const savedGid = localStorage.getItem(LS_GID_KEY) || "";
+  const bootParsed = paramRaw ? parseSheetInput(paramRaw) : { id: savedId, gid: savedGid };
 
-  if (savedId) {
-    sheetInputEl.value = savedId;
-    loadSheet(savedId);
+  if (bootParsed.id) {
+    sheetInputEl.value = bootParsed.id;
+    sheetUrlEl.value = /\/spreadsheets\/d\//.test(paramRaw)
+      ? paramRaw
+      : sheetUrlFromId(bootParsed.id, bootParsed.gid);
+    showExtractedHint(bootParsed);
+    loadSheet(bootParsed.id, bootParsed.gid);
   }
 
   connectBtn.addEventListener("click", () => {
-    const val = sheetInputEl.value.trim();
-    if (!val) {
-      showGateMsg("請輸入試算表 ID 或網址", true);
+    const fromUrl = parseSheetInput(sheetUrlEl.value);
+    const fromId = parseSheetInput(sheetInputEl.value);
+    const id = fromUrl.id && /\/spreadsheets\/d\//.test(sheetUrlEl.value)
+      ? fromUrl.id
+      : (fromId.id || fromUrl.id);
+    const gid = fromUrl.gid || fromId.gid || "";
+    if (!id) {
+      showGateMsg("請貼上試算表完整網址，或輸入 ID", true);
       return;
     }
-    loadSheet(val);
+    sheetInputEl.value = id;
+    if (!sheetUrlEl.value.trim()) sheetUrlEl.value = sheetUrlFromId(id, gid);
+    showExtractedHint({ id, gid });
+    loadSheet(id, gid);
   });
 
   function doSwitchSheet() {
     localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_GID_KEY);
     sheetInputEl.value = "";
-    resetSheetBtn.style.display = "none";
-    switchSheetBtn.style.display = "none";
-    gateEl.style.display = "";   // 重新顯示 gate
+    sheetUrlEl.value = "";
+    extractedHintEl.hidden = true;
+    resetSheetBtn.hidden = true;
+    switchSheetBtn.hidden = true;
+    gateEl.style.display = "";
+    if (isIOSDevice() && !isStandalonePWA()) iosInstallEl.hidden = false;
     connectBtn.disabled = false;
-    showGateMsg("已清除連線，請重新輸入試算表");
+    showGateMsg("已清除連線，請重新貼上試算表網址");
   }
 
   resetSheetBtn.addEventListener("click", doSwitchSheet);
@@ -421,28 +708,20 @@
   }
 
   // 2. 試算表載入引擎（官方 gviz 模式，零 Apps Script）
-  function extractSpreadsheetId(str) {
-    // 支援直接輸入 ID，或完整的 docs.google.com/spreadsheets/d/ID/... 網址
-    const m = str.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return m ? m[1] : str.trim();
-  }
-
-  async function loadSheet(rawInput) {
-    const sid = extractSpreadsheetId(rawInput);
+  async function loadSheet(sid, gid) {
     if (!sid) return;
 
     showGateMsg("正在連線試算表資料庫...");
     connectBtn.disabled = true;
 
-    // 支援 Google Visualization API (gviz)
-    const gvizUrl = `https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:json`;
+    let gvizUrl = "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(sid) + "/gviz/tq?tqx=out:json";
+    if (gid) gvizUrl += "&gid=" + encodeURIComponent(gid);
 
     try {
       const resp = await fetch(gvizUrl);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
       const text = await resp.text();
 
-      // 解析 gviz 傳回之 JSON 結構 /*O_o*/ google.visualization.Query.setResponse({...});
       const start = text.indexOf("{");
       const end = text.lastIndexOf("}");
       if (start === -1 || end === -1) throw new Error("無效的試算表回應");
@@ -450,9 +729,12 @@
 
       parseGvizData(json);
       localStorage.setItem(LS_KEY, sid);
+      if (gid) localStorage.setItem(LS_GID_KEY, gid);
+      else localStorage.removeItem(LS_GID_KEY);
       gateEl.style.display = "none";
-      resetSheetBtn.style.display = "inline-block";
-      switchSheetBtn.style.display = "inline-block";
+      iosInstallEl.hidden = true;
+      resetSheetBtn.hidden = false;
+      switchSheetBtn.hidden = false;
     } catch (e) {
       console.error(e);
       showGateMsg("連線失敗：請確認試算表已開啟「知道連結的使用者可檢視」或「發布到網路」", true);
@@ -798,15 +1080,32 @@
   }
 
   // 8. 播放模式 A：YouTube App 臨時歌單 (watch_videos)
+  function openExternal(url) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function youtubeWatchUrl(vid) {
+    return "https://www.youtube.com/watch?v=" + encodeURIComponent(vid);
+  }
+
+  function youtubeQueueUrl(ids) {
+    return "https://www.youtube.com/watch_videos?video_ids=" + ids.map(encodeURIComponent).join(",");
+  }
+
   btnYt.addEventListener("click", () => {
     if (!state.active50.length) return;
-    const vids = state.active50.map(s => s.id).join(",");
-    const url = `https://www.youtube.com/watch_videos?video_ids=${vids}`;
-    window.open(url, "_blank");
+    openExternal(youtubeQueueUrl(state.active50.map(s => s.id)));
   });
 
-  // 9. 播放模式 B：網頁內嵌播放器 (IFrame)
+  // 9. 播放模式 B：網頁內嵌播放器（iPhone / iOS PWA 無法內嵌，改開 YouTube App）
   btnEmbed.addEventListener("click", () => {
+    if (noEmbedYouTube) return;
     state.inAppMode = !state.inAppMode;
     btnEmbed.setAttribute("aria-pressed", state.inAppMode ? "true" : "false");
     miniPlayerEl.hidden = !state.inAppMode;
@@ -816,29 +1115,55 @@
   });
 
   function playSingleSong(vid, title, artist) {
+    if (noEmbedYouTube) {
+      openExternal(youtubeWatchUrl(vid));
+      return;
+    }
     state.inAppMode = true;
     btnEmbed.setAttribute("aria-pressed", "true");
     miniPlayerEl.hidden = false;
     nowTitle.textContent = title;
     nowArtist.textContent = artist;
-    playerMount.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&enablejsapi=1" allow="autoplay" allowfullscreen></iframe>`;
+    const src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(vid) + "?autoplay=1&enablejsapi=1&playsinline=1";
+    playerMount.innerHTML = "";
+    const frame = document.createElement("iframe");
+    frame.src = src;
+    frame.allow = "autoplay; encrypted-media";
+    frame.allowFullscreen = true;
+    playerMount.appendChild(frame);
   }
 
   function loadInAppVideo(index) {
     if (!state.active50.length) return;
+    if (noEmbedYouTube) {
+      const s = state.active50[(index + state.active50.length) % state.active50.length];
+      openExternal(youtubeWatchUrl(s.id));
+      return;
+    }
     state.currentPlayingIndex = (index + state.active50.length) % state.active50.length;
     const s = state.active50[state.currentPlayingIndex];
     nowTitle.textContent = s.title;
     nowArtist.textContent = s.artist || s.channel;
-    playerMount.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${s.id}?autoplay=1&enablejsapi=1" allow="autoplay" allowfullscreen></iframe>`;
+    const src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(s.id) + "?autoplay=1&enablejsapi=1&playsinline=1";
+    playerMount.innerHTML = "";
+    const frame = document.createElement("iframe");
+    frame.src = src;
+    frame.allow = "autoplay; encrypted-media";
+    frame.allowFullscreen = true;
+    playerMount.appendChild(frame);
   }
 
   btnNext.addEventListener("click", () => loadInAppVideo(state.currentPlayingIndex + 1));
   btnPrev.addEventListener("click", () => loadInAppVideo(state.currentPlayingIndex - 1));
   btnToggle.addEventListener("click", () => {
-    // 重新載入或暫停
     loadInAppVideo(state.currentPlayingIndex);
   });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
 
 })();
 </script>
