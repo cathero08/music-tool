@@ -203,8 +203,13 @@
   .tag-badge {
     font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 0.6rem;
     background: var(--ground); color: var(--ink-dim); border: 1px solid var(--line);
+    cursor: pointer; font-family: inherit; display: inline-block;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .tag-badge:hover { background: var(--line); color: var(--ink); }
   .tag-badge.key { color: var(--brass); border-color: var(--brass-lo); }
+  .tag-badge.active { background: var(--brass); color: #1a1208; border-color: var(--brass); font-weight: 600; }
+  .tag-badge.key.active { background: var(--brass); color: #1a1208; border-color: var(--brass); }
 
   /* ── 底部內嵌播放器 ── */
   .mini-player {
@@ -231,6 +236,14 @@
     border-radius: 50%; width: 34px; height: 34px; padding: 0;
     display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
   }
+  .btn-switch-sheet {
+    position: absolute; top: 0.6rem; right: 0.75rem;
+    background: transparent; border: 1px solid var(--line);
+    color: var(--ink-dim); border-radius: 0.5rem;
+    padding: 0.25rem 0.6rem; font-size: 0.72rem; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-switch-sheet:hover { background: var(--panel); color: var(--ink); }
 </style>
 
 <div class="readout">
@@ -253,6 +266,9 @@
         🎧 內嵌
       </button>
     </div>
+    <button class="btn-switch-sheet" id="btn-switch-sheet" style="display:none;" title="清除連線，重新輸入試算表">
+      ⇄ 切換 Sheet
+    </button>
   </div>
 </div>
 
@@ -324,7 +340,7 @@
     "情境": ["開車", "工作", "運動", "睡前", "派對", "通勤"]
   };
 
-  const SINGLE_CATS = new Set(["語言", "男女歌手", "年代"]);
+  const SINGLE_CATS = new Set();
 
   let state = {
     allSongs: [],
@@ -342,6 +358,7 @@
   const sheetInputEl = document.getElementById("input-sheet-id");
   const connectBtn = document.getElementById("btn-connect");
   const resetSheetBtn = document.getElementById("btn-reset-sheet");
+  const switchSheetBtn = document.getElementById("btn-switch-sheet");
   const gateMsgEl = document.getElementById("gate-msg");
 
   const countEl = document.getElementById("count");
@@ -385,12 +402,18 @@
     loadSheet(val);
   });
 
-  resetSheetBtn.addEventListener("click", () => {
+  function doSwitchSheet() {
     localStorage.removeItem(LS_KEY);
     sheetInputEl.value = "";
     resetSheetBtn.style.display = "none";
-    showGateMsg("已清除連線資訊，請重新輸入");
-  });
+    switchSheetBtn.style.display = "none";
+    gateEl.style.display = "";   // 重新顯示 gate
+    connectBtn.disabled = false;
+    showGateMsg("已清除連線，請重新輸入試算表");
+  }
+
+  resetSheetBtn.addEventListener("click", doSwitchSheet);
+  switchSheetBtn.addEventListener("click", doSwitchSheet);
 
   function showGateMsg(txt, isErr) {
     gateMsgEl.textContent = txt;
@@ -429,6 +452,7 @@
       localStorage.setItem(LS_KEY, sid);
       gateEl.style.display = "none";
       resetSheetBtn.style.display = "inline-block";
+      switchSheetBtn.style.display = "inline-block";
     } catch (e) {
       console.error(e);
       showGateMsg("連線失敗：請確認試算表已開啟「知道連結的使用者可檢視」或「發布到網路」", true);
@@ -718,19 +742,45 @@
       const row = document.createElement("div");
       row.className = "track";
 
-      const tagsHtml = song.tags.map(t => {
-        const isKey = ["中文", "英文", "日文", "韓文", "粵語", "純音樂"].includes(t) || t.endsWith("s");
-        return `<span class="tag-badge ${isKey ? "key" : ""}">${t}</span>`;
-      }).join("");
+      // 建立 tag 反查表：tag → cat
+      const tagToCat = {};
+      Object.entries(state.categories).forEach(([cat, tags]) => {
+        tags.forEach(t => { tagToCat[t] = cat; });
+      });
 
-      row.innerHTML = `
-        <div class="track-num">${idx + 1}</div>
-        <div class="track-body">
-          <div class="track-title">${song.title}</div>
-          <div class="track-artist">${song.artist || song.channel}</div>
-          <div class="track-tags">${tagsHtml}</div>
-        </div>
+      const trackBody = document.createElement("div");
+      trackBody.className = "track-body";
+      trackBody.innerHTML = `
+        <div class="track-title">${song.title}</div>
+        <div class="track-artist">${song.artist || song.channel}</div>
       `;
+
+      const trackTags = document.createElement("div");
+      trackTags.className = "track-tags";
+
+      song.tags.forEach(t => {
+        const isKey = ["中文", "英文", "日文", "韓文", "粵語", "純音樂"].includes(t) || t.endsWith("s");
+        const isActive = state.selectedTags.has(t);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `tag-badge ${isKey ? "key" : ""} ${isActive ? "active" : ""}`.trim();
+        btn.textContent = t;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation(); // 不觸發播放
+          const cat = tagToCat[t] || "__other__";
+          toggleTag(cat, t);
+        });
+        trackTags.appendChild(btn);
+      });
+
+      trackBody.appendChild(trackTags);
+
+      const trackNum = document.createElement("div");
+      trackNum.className = "track-num";
+      trackNum.textContent = idx + 1;
+
+      row.appendChild(trackNum);
+      row.appendChild(trackBody);
 
       row.addEventListener("click", () => {
         playSingleSong(song.id, song.title, song.artist || song.channel);

@@ -5,6 +5,143 @@
 
 ---
 
+## 🚀 新手快速入門
+
+> 這一節專為**第一次下載這個專案**的人設計。  
+> 請先確認你的電腦已安裝 **Python 3.9+** 與 **Git**。
+
+---
+
+### 情境 A：只想用手機點唱機（無需任何 API）
+
+已經有標籤資料或想手動建表？最省事的方式。
+
+**步驟 1　下載專案**
+```bash
+git clone https://github.com/<你的帳號>/music-tool.git
+cd music-tool
+```
+
+**步驟 2　準備 Google Sheet**
+
+1. 開啟 [Google 試算表](https://sheets.google.com) 建立新試算表，第一列依序填入欄標題：
+   ```
+   videoId  歌名  歌手/原唱  頻道  語言  男女歌手  年代  曲風  心情  情境  非音樂  來源清單
+   ```
+2. 從第二列起填入歌曲資料（`videoId` 為 YouTube 網址中 `v=` 後面那一段）
+3. 右上角「共用」→「知道連結的任何人」設為**檢視者**
+
+**步驟 3　連上網頁**
+
+用瀏覽器打開 `index.html`（或部署到 GitHub Pages 後用手機開），貼上試算表網址 → 按「連線」。
+
+---
+
+### 情境 B：完整功能（YouTube 自動同步 + AI 打標籤）
+
+**步驟 1　下載並安裝套件**
+```bash
+git clone https://github.com/<你的帳號>/music-tool.git
+cd music-tool
+pip install -r requirements.txt
+```
+
+**步驟 2　複製環境變數範本**
+```bash
+cp .env.example .env
+```
+
+**步驟 3　取得 Google OAuth 憑證**
+
+1. 前往 [Google Cloud Console](https://console.cloud.google.com) 建立或選擇一個專案
+2. 啟用 **YouTube Data API v3** 與 **Google Sheets API**
+3. 「憑證」→「建立憑證」→「OAuth 用戶端 ID」→ 選 **桌面應用程式**
+4. 下載 JSON 改名為 `client_secret.json`，放到本專案根目錄
+5. 「OAuth 同意畫面」→「測試使用者」→ 加入你聽音樂的 Google 帳號
+
+**步驟 4　取得免費 Gemini API Key（AI 自動打標籤用）**
+
+1. 前往 [Google AI Studio](https://aistudio.google.com/) 登入
+2. 點「Get API key」→「Create API key」複製金鑰
+3. 填入 `.env`：
+   ```
+   GEMINI_API_KEY=AIzaSy...
+   ```
+
+**步驟 5　建立 Google Sheet 資料庫**
+```bash
+python3 music_tool.py sheet-init
+# 瀏覽器會彈出授權頁面，同意後自動建立試算表
+```
+
+**步驟 6　從 YouTube 同步媒體庫並自動打標籤**
+```bash
+python3 music_tool.py sync
+# 第一次執行會彈出 YouTube 授權頁面，同意即可
+# 完成後歌曲與標籤自動寫入 Google Sheet
+```
+
+**步驟 7　把 Sheet 設為公開**
+```bash
+python3 music_tool.py sheet-info   # 查看試算表網址
+```
+打開該網址 → 右上角「共用」→「知道連結的任何人」設為**檢視者**。
+
+**步驟 8　推送到 GitHub 並開啟 Pages**
+```bash
+python3 music_tool.py check-security   # 確認沒有機密檔案要上傳
+git add index.html manifest.json README.md
+git commit -m "init"
+git push
+```
+到 GitHub repo → Settings → Pages → Source 選 `main` + `/ (root)` → 儲存。  
+幾分鐘後用手機開 `https://<帳號>.github.io/<repo>/`，貼上 Sheet 網址即完成。
+
+---
+
+### 情境 C：最精簡（不申請任何 API，手動標籤）
+
+**步驟 1　下載並安裝套件**
+```bash
+git clone https://github.com/<你的帳號>/music-tool.git
+cd music-tool
+pip install -r requirements.txt
+```
+
+**步驟 2　匯出待標記批次交給 AI**
+```bash
+python3 manual_tag.py dump 120      # 取出最多 120 首尚未標記的歌
+# 會產生一份清單，複製貼給 Claude / ChatGPT 叫它照格式標記
+```
+
+**步驟 3　將 AI 回傳的結果匯回**
+```bash
+python3 manual_tag.py apply tags.json
+```
+
+**步驟 4　啟動 Sheet 並上傳**
+```bash
+python3 music_tool.py sheet-init    # 需要 Google Sheets 授權，但不需要 YouTube
+```
+
+**步驟 5　開啟網頁**
+
+打開 `index.html`，貼上 Sheet 網址即可使用。
+
+---
+
+### 常用指令速查
+
+| 目的 | 指令 |
+|---|---|
+| 同步 YouTube + AI 打標 | `python3 music_tool.py sync` |
+| 手動調整標籤 | `python3 music_tool.py edit 關鍵字 +放鬆 -嗨歌` |
+| 查看標籤統計 | `python3 music_tool.py stats` |
+| 推送前安全檢查 | `python3 music_tool.py check-security` |
+| 查看 Sheet 資訊 | `python3 music_tool.py sheet-info` |
+
+---
+
 ## ⚡ 極簡架構特色 (Best Practices)
 
 1. **AI 自動結構化打標籤（支援 0 元 Google Gemini 2.5 Flash）**：
