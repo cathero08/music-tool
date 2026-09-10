@@ -443,7 +443,20 @@
       return;
     }
 
-    const header = table.cols.map(c => (c.label || "").trim());
+    // 優先用 cols[].label；若試算表未設欄標籤（label 全為空），
+    // 則 fallback 取第一個 row 作為 header，並把該 row 從資料列中移除。
+    let header = table.cols.map(c => (c.label || "").trim());
+    let dataRows = table.rows;
+
+    const hasLabel = header.some(h => h !== "");
+    if (!hasLabel && dataRows.length > 0) {
+      const firstRow = dataRows[0];
+      if (firstRow && firstRow.c) {
+        header = firstRow.c.map(cell => (cell && cell.v != null ? String(cell.v).trim() : ""));
+        dataRows = dataRows.slice(1); // 移除 header row，避免當成歌曲資料
+      }
+    }
+
     const colIdx = {};
     header.forEach((name, i) => { if (name) colIdx[name] = i; });
 
@@ -455,7 +468,7 @@
     const songs = [];
     const usedTags = {};
 
-    table.rows.forEach(r => {
+    dataRows.forEach(r => {
       if (!r.c) return;
       const getVal = (name) => {
         const idx = colIdx[name];
